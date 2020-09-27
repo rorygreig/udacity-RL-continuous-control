@@ -13,7 +13,7 @@ def main():
     parsed_args = parser.parse_args()
     train = parsed_args.train
 
-    env = UnityEnvironment(file_name="./Reacher_Linux_NoVis/Reacher.x86_64")
+    env = UnityEnvironment(file_name="./Reacher_Linux_many_agents/Reacher.x86_64")
     ppo = PPO(env, solve_threshold=15.0)
 
     weights_filename = "final_weights.pth"
