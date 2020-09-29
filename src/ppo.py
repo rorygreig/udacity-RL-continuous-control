@@ -32,14 +32,13 @@ class PPO:
 
         state = env_info.vector_observations[0]
         self.state_size = len(state)
-
         self.action_size = brain.vector_action_space_size
-
         self.num_agents = len(env_info.agents)
 
-        self.policy = Policy(self.state_size, self.action_size, seed)
+        print(f"\nState size: {self.state_size}, action size: {self.action_size}, number of agents: {self.num_agents}")
 
-        self.optimizer = optim.Adam(self.policy.parameters(), lr=learning_rate)
+        self.policy = Policy(self.state_size, self.action_size, seed)
+        self.optimizer = optim.Adam(self.policy.policy_net.parameters(), lr=learning_rate)
 
     def train(self, n_episodes=500, discount=0.995, epsilon=0.1, beta=0.01, tmax=320, sgd_epoch=4):
         """Proximal Policy Optimization.
@@ -90,37 +89,30 @@ class PPO:
     # collect trajectories for all unity agents in environment
     def collect_trajectories(self, tmax=200):
 
-        env_info = self.env.reset(train_mode=True)[self.brain_name]  # reset the environment
-        scores = np.zeros(self.num_agents)  # initialize the score (for each agent)
+        env_info = self.env.reset(train_mode=True)[self.brain_name]
+        states = env_info.vector_observations
+        scores = np.zeros(self.num_agents)
 
-        # initialize returning lists and start the game!
         state_list = []
         reward_list = []
         prob_list = []
         action_list = []
 
         for t in range(tmax):
-            # TODO: should we be generating actions based on the policy here???
-            actions = np.random.randn(self.num_agents, self.action_size)  # select an action (for each agent)
-            actions = np.clip(actions, -1, 1)  # all actions between -1 and 1
+            states = torch.from_numpy(states).float().to(device)
+            actions, probs = self.policy.get_action_probs(states)
             env_info = self.env.step(actions)[self.brain_name]
 
-            next_states = env_info.vector_observations
-            rewards = env_info.rewards
-            dones = env_info.local_done
-            scores += env_info.rewards
-            states = next_states
-
-            # calculate probs using policy
-            # TODO: how to do this for multiple agents at once??
-            probs = self.policy(states).squeeze().cpu().detach().numpy()
-
             state_list.append(states)
-            reward_list.append(rewards)
+            reward_list.append(env_info.rewards)
             prob_list.append(probs)
             action_list.append(actions)
 
-            if np.any(dones):  # exit loop if episode finished
+            # update to next states
+            states = env_info.vector_observations
+            scores += env_info.rewards
+
+            if np.any(env_info.local_done):  # exit loop if episode finished
                 break
 
         # return pi_theta, states, actions, rewards, probability
@@ -144,8 +136,8 @@ class PPO:
         old_probs = torch.tensor(old_probs, dtype=torch.float, device=device)
         rewards = torch.tensor(rewards_normalized, dtype=torch.float, device=device)
 
-        # convert states to policy (or probability)
-        new_probs = states_to_prob(self.policy, states)
+        # convert states to probabilities
+        _, new_probs = self.policy.get_action_probs(states)
 
         # ratio for clipping
         ratio = new_probs / old_probs
@@ -167,11 +159,11 @@ class PPO:
 
     def store_weights(self, filename='checkpoint.pth'):
         print("Storing weights")
-        torch.save(self.policy.state_dict(), "weights/" + filename)
+        torch.save(self.policy.policy_net.state_dict(), "weights/" + filename)
 
     def run_with_stored_weights(self, filename='"final_weights.pth"'):
         # load stored weights from training
-        self.policy.load_state_dict(torch.load("weights/" + filename))
+        self.policy.policy_net.load_state_dict(torch.load("weights/" + filename))
 
         env_info = self.env.reset(train_mode=False)[self.brain_name]  # reset the environment
         scores = np.zeros(self.num_agents)  # initialize the score (for each agent)
@@ -186,8 +178,3 @@ class PPO:
         print('Total score (averaged over agents) this episode: {}'.format(np.mean(scores)))
 
 
-# convert states to probability, passing through the policy
-def states_to_prob(policy, states):
-    states = torch.stack(states)
-    policy_input = states.view(-1,*states.shape[-3:])
-    return policy(policy_input).view(states.shape[:-3])
