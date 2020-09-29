@@ -40,7 +40,7 @@ class PPO:
         self.policy = Policy(self.state_size, self.action_size, seed)
         self.optimizer = optim.Adam(self.policy.policy_net.parameters(), lr=learning_rate)
 
-    def train(self, n_episodes=500, discount=0.995, epsilon=0.1, beta=0.01, tmax=320, sgd_epoch=4):
+    def train(self, n_episodes=2000, discount=0.995, epsilon=0.1, beta=0.01, tmax=120, sgd_epoch=4):
         """Proximal Policy Optimization.
         Params
         ======
@@ -76,19 +76,18 @@ class PPO:
             beta *= .995
 
             # get the average reward for each agent
-            mean_rewards.append(np.mean(total_rewards))
+            score = np.mean(total_rewards)
+            mean_rewards.append(score)
 
-            if (i_episode + 1) % 20 == 0:
-                print("Episode: {0:d}, score: {1:f}".format(i_episode + 1, np.mean(total_rewards)))
-                print(total_rewards)
+            if i_episode % 20 == 0:
+                print(f"Episode: {i_episode}, score: {score}")
 
         self.env.close()
 
         return mean_rewards
 
     # collect trajectories for all unity agents in environment
-    def collect_trajectories(self, tmax=200):
-
+    def collect_trajectories(self, tmax):
         env_info = self.env.reset(train_mode=True)[self.brain_name]
         states = env_info.vector_observations
         scores = np.zeros(self.num_agents)
@@ -113,6 +112,8 @@ class PPO:
             # update to next states
             states = env_info.vector_observations
             scores += env_info.rewards
+            if np.max(env_info.rewards) > 0.0:
+                print(f"\nMax reward: {np.max(env_info.rewards)}")
 
             if np.any(env_info.local_done):  # exit loop if episode finished
                 break

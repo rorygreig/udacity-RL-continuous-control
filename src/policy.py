@@ -20,12 +20,6 @@ class Policy:
 
         return actions, probs
 
-    # # convert states to probability, passing through the policy
-    # def states_to_prob(self, policy, states):
-    #     states = torch.stack(states)
-    #     policy_input = states.view(-1, *states.shape[-3:])
-    #     return policy(policy_input).view(states.shape[:-3])
-
 
 class PolicyNet(nn.Module):
     def __init__(self, state_size, action_size, seed, fc1_units=64, fc2_units=32, fc3_units=32):
