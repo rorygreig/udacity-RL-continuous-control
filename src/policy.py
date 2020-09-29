@@ -45,5 +45,8 @@ class PolicyNet(nn.Module):
         x = F.relu(self.fc1(state))
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
-        return Normal(self.loc(x), self.scale(x))
+
+        # take exponential of scale to guarantee non-negative value
+        scale = torch.exp(self.scale(x))
+        return Normal(self.loc(x), scale)
 

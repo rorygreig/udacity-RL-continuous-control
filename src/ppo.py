@@ -40,7 +40,7 @@ class PPO:
         self.policy = Policy(self.state_size, self.action_size, seed)
         self.optimizer = optim.Adam(self.policy.policy_net.parameters(), lr=learning_rate)
 
-    def train(self, n_episodes=4, discount=0.995, epsilon=0.1, beta=0.01, tmax=120, sgd_epoch=4):
+    def train(self, n_episodes=2000, discount=0.995, epsilon=0.1, beta=0.01, tmax=120, sgd_epoch=4):
         """Proximal Policy Optimization.
         Params
         ======
@@ -111,8 +111,6 @@ class PPO:
 
             states = env_info.vector_observations
             scores += env_info.rewards
-            if np.max(env_info.rewards) > 0.0:
-                print(f"\nMax reward: {np.max(env_info.rewards)}")
 
             if np.any(env_info.local_done):  # exit loop if episode finished
                 break
@@ -181,9 +179,6 @@ class PPO:
             states = env_info.vector_observations
             dones = env_info.local_done
             scores += env_info.rewards
-
-            if np.max(env_info.rewards) > 0.0:
-                print(f"\nMax reward: {np.max(env_info.rewards)}")
 
             if np.any(dones):
                 break
