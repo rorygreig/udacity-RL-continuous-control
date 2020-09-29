@@ -109,7 +109,6 @@ class PPO:
             prob_list.append(probs)
             action_list.append(actions)
 
-            # update to next states
             states = env_info.vector_observations
             scores += env_info.rewards
             if np.max(env_info.rewards) > 0.0:
