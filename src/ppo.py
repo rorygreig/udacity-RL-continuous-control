@@ -40,7 +40,7 @@ class PPO:
         self.policy = Policy(self.state_size, self.action_size, seed)
         self.optimizer = optim.Adam(self.policy.policy_net.parameters(), lr=learning_rate)
 
-    def train(self, n_episodes=2000, discount=0.995, epsilon=0.1, beta=0.01, tmax=120, sgd_epoch=4):
+    def train(self, n_episodes=4, discount=0.995, epsilon=0.1, beta=0.01, tmax=120, sgd_epoch=4):
         """Proximal Policy Optimization.
         Params
         ======
@@ -168,15 +168,24 @@ class PPO:
         # load stored weights from training
         self.policy.policy_net.load_state_dict(torch.load("weights/" + filename))
 
-        env_info = self.env.reset(train_mode=False)[self.brain_name]  # reset the environment
-        scores = np.zeros(self.num_agents)  # initialize the score (for each agent)
+        env_info = self.env.reset(train_mode=False)[self.brain_name]
+        states = env_info.vector_observations
+        scores = np.zeros(self.num_agents)
         while True:
-            actions = np.random.randn(self.num_agents, self.action_size)  # select an action (for each agent)
-            actions = np.clip(actions, -1, 1)  # all actions between -1 and 1
-            env_info = self.env.step(actions)[self.brain_name]  # send all actions to tne environment
-            dones = env_info.local_done  # see if episode finished
-            scores += env_info.rewards  # update the score (for each agent)
-            if np.any(dones):  # exit loop if episode finished
+            states = torch.from_numpy(states).float().to(device)
+            actions, _ = self.policy.get_action_probs(states)
+            actions = actions.cpu().detach().numpy()
+
+            env_info = self.env.step(actions)[self.brain_name]
+
+            states = env_info.vector_observations
+            dones = env_info.local_done
+            scores += env_info.rewards
+
+            if np.max(env_info.rewards) > 0.0:
+                print(f"\nMax reward: {np.max(env_info.rewards)}")
+
+            if np.any(dones):
                 break
         print('Total score (averaged over agents) this episode: {}'.format(np.mean(scores)))
 
