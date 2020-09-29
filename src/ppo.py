@@ -41,14 +41,13 @@ class PPO:
 
         self.optimizer = optim.Adam(self.policy.parameters(), lr=learning_rate)
 
-    def train(self, n_episodes=500, discount_rate=0.99, epsilon=0.1, beta=0.01, tmax=320, sgd_epoch=4):
+    def train(self, n_episodes=500, discount=0.995, epsilon=0.1, beta=0.01, tmax=320, sgd_epoch=4):
         """Proximal Policy Optimization.
         Params
         ======
             n_episodes (int): maximum number of training episodes
-            discount_rate:
-            epsilon:
-            beta:
+            epsilon: clipping parameter
+            beta: regulation term
             tmax: max number of timesteps per episode
             SGD_epoch
         """
@@ -58,42 +57,37 @@ class PPO:
         # keep track of progress
         mean_rewards = []
 
-        for e in tqdm(range(n_episodes)):
+        for i_episode in tqdm(range(n_episodes)):
 
             # collect trajectories
             old_probs, states, actions, rewards = self.collect_trajectories(tmax=tmax)
-
             total_rewards = np.sum(rewards, axis=0)
 
             # gradient ascent step
             for _ in range(sgd_epoch):
-                loss = -self.clipped_surrogate(old_probs, states, actions, rewards, epsilon=epsilon, beta=beta)
+                loss = -self.clipped_surrogate(old_probs, states, actions, rewards, discount=discount, epsilon=epsilon,
+                                               beta=beta)
 
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
                 del loss
 
-            # the clipping parameter reduces as time goes on
             epsilon *= .999
-
-            # the regulation term also reduces
-            # this reduces exploration in later runs
             beta *= .995
 
-            # get the average reward of the parallel environments
+            # get the average reward for each agent
             mean_rewards.append(np.mean(total_rewards))
 
-            # display some progress every 20 iterations
-            if (e + 1) % 20 == 0:
-                print("Episode: {0:d}, score: {1:f}".format(e + 1, np.mean(total_rewards)))
+            if (i_episode + 1) % 20 == 0:
+                print("Episode: {0:d}, score: {1:f}".format(i_episode + 1, np.mean(total_rewards)))
                 print(total_rewards)
 
         self.env.close()
 
         return mean_rewards
 
-    # collect trajectories for a parallelized parallelEnv object
+    # collect trajectories for all unity agents in environment
     def collect_trajectories(self, tmax=200):
 
         env_info = self.env.reset(train_mode=True)[self.brain_name]  # reset the environment
@@ -133,7 +127,7 @@ class PPO:
 
     # clipped surrogate function
     # similar as -policy_loss for REINFORCE, but for PPO
-    def clipped_surrogate(self, old_probs, states, actions, rewards, discount=0.995, epsilon=0.1, beta=0.01):
+    def clipped_surrogate(self, old_probs, states, actions, rewards, discount, epsilon, beta):
 
         discount = discount ** np.arange(len(rewards))
         rewards = np.asarray(rewards) * discount[:, np.newaxis]
