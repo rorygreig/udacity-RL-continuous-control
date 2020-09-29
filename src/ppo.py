@@ -1,16 +1,28 @@
-import torch
 import numpy as np
-from collections import deque
+import torch
+import torch.optim as optim
+from tqdm import tqdm
 
-from src.ppo_agent import Agent
+from src.policy import Policy
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 class PPO:
-    def __init__(self, env, solve_threshold=15.0):
-        self.env = env
-        self.solve_threshold = solve_threshold
+    """Interacts with and learns from the environment."""
 
-        self.score_window_length = 100
+    def __init__(self, env, seed=1, learning_rate=1e-4):
+        """Initialize an Agent object.
+        
+        Params
+        ======
+            env: parallel environment
+            num_agents: number of agents in environment
+            state_size (int): dimension of each state
+            action_size (int): dimension of each action
+            seed (int): random seed
+        """
+        self.env = env
 
         # get the default brain
         self.brain_name = env.brain_names[0]
@@ -25,101 +37,166 @@ class PPO:
 
         self.num_agents = len(env_info.agents)
 
-        self.agent = Agent(state_size=self.state_size, action_size=self.action_size, seed=0, learning_rate=8e-4)
+        self.policy = Policy(self.state_size, self.action_size, seed)
 
-    def train(self, n_episodes=1800, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.995):
+        self.optimizer = optim.Adam(self.policy.parameters(), lr=learning_rate)
+
+    def train(self, n_episodes=500, discount_rate=0.99, epsilon=0.1, beta=0.01, tmax=320, sgd_epoch=4):
         """Proximal Policy Optimization.
-
         Params
         ======
             n_episodes (int): maximum number of training episodes
-            max_t (int): maximum number of timesteps per episode
-            eps_start (float): starting value of epsilon, for epsilon-greedy action selection
-            eps_end (float): minimum value of epsilon
-            eps_decay (float): multiplicative factor (per episode) for decreasing epsilon
+            discount_rate:
+            epsilon:
+            beta:
+            tmax: max number of timesteps per episode
+            SGD_epoch
         """
 
         print(f"Training PPO on continuous control")
 
-        scores = []  # list containing scores from each episode
-        scores_window = deque(maxlen=self.score_window_length)  # window of scores
-        eps = eps_start
+        # keep track of progress
+        mean_rewards = []
 
-        checkpoint_interval = 200
+        for e in tqdm(range(n_episodes)):
 
-        env_info = self.env.reset(train_mode=False)[self.brain_name]  # reset the environment
+            # collect trajectories
+            old_probs, states, actions, rewards = self.collect_trajectories(tmax=tmax)
+
+            total_rewards = np.sum(rewards, axis=0)
+
+            # gradient ascent step
+            for _ in range(sgd_epoch):
+                loss = -self.clipped_surrogate(old_probs, states, actions, rewards, epsilon=epsilon, beta=beta)
+
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
+                del loss
+
+            # the clipping parameter reduces as time goes on
+            epsilon *= .999
+
+            # the regulation term also reduces
+            # this reduces exploration in later runs
+            beta *= .995
+
+            # get the average reward of the parallel environments
+            mean_rewards.append(np.mean(total_rewards))
+
+            # display some progress every 20 iterations
+            if (e + 1) % 20 == 0:
+                print("Episode: {0:d}, score: {1:f}".format(e + 1, np.mean(total_rewards)))
+                print(total_rewards)
+
+        self.env.close()
+
+        return mean_rewards
+
+    # collect trajectories for a parallelized parallelEnv object
+    def collect_trajectories(self, tmax=200):
+
+        env_info = self.env.reset(train_mode=True)[self.brain_name]  # reset the environment
         states = env_info.vector_observations  # get the current state (for each agent)
         scores = np.zeros(self.num_agents)  # initialize the score (for each agent)
-        while True:
+
+        # initialize returning lists and start the game!
+        state_list = []
+        reward_list = []
+        prob_list = []
+        action_list = []
+
+        for t in range(tmax):
             actions = np.random.randn(self.num_agents, self.action_size)  # select an action (for each agent)
             actions = np.clip(actions, -1, 1)  # all actions between -1 and 1
             env_info = self.env.step(actions)[self.brain_name]  # send all actions to tne environment
+
             next_states = env_info.vector_observations  # get next state (for each agent)
             rewards = env_info.rewards  # get reward (for each agent)
             dones = env_info.local_done  # see if episode finished
             scores += env_info.rewards  # update the score (for each agent)
             states = next_states  # roll over states to next time step
+
+            # calculate probs using policy
+            probs = self.policy(states).squeeze().cpu().detach().numpy()
+
+            state_list.append(states)
+            reward_list.append(rewards)
+            prob_list.append(probs)
+            action_list.append(actions)
+
+            if np.any(dones):  # exit loop if episode finished
+                break
+
+        # return pi_theta, states, actions, rewards, probability
+        return prob_list, state_list, action_list, reward_list
+
+    # clipped surrogate function
+    # similar as -policy_loss for REINFORCE, but for PPO
+    def clipped_surrogate(self, old_probs, states, actions, rewards, discount=0.995, epsilon=0.1, beta=0.01):
+
+        discount = discount ** np.arange(len(rewards))
+        rewards = np.asarray(rewards) * discount[:, np.newaxis]
+
+        # convert rewards to future rewards
+        rewards_future = rewards[::-1].cumsum(axis=0)[::-1]
+
+        mean = np.mean(rewards_future, axis=1)
+        std = np.std(rewards_future, axis=1) + 1.0e-10
+
+        rewards_normalized = (rewards_future - mean[:, np.newaxis]) / std[:, np.newaxis]
+
+        # convert everything into pytorch tensors and move to gpu if available
+        actions = torch.tensor(actions, dtype=torch.int8, device=device)
+        old_probs = torch.tensor(old_probs, dtype=torch.float, device=device)
+        rewards = torch.tensor(rewards_normalized, dtype=torch.float, device=device)
+
+        # convert states to policy (or probability)
+        new_probs = states_to_prob(self.policy, states)
+        # new_probs = torch.where(actions == RIGHT, new_probs, 1.0 - new_probs)
+
+        # ratio for clipping
+        ratio = new_probs / old_probs
+
+        # clipped function
+        clip = torch.clamp(ratio, 1 - epsilon, 1 + epsilon)
+        clipped_surrogate = torch.min(ratio * rewards, clip * rewards)
+
+        # include a regularization term
+        # this steers new_policy towards 0.5
+        # add in 1.e-10 to avoid log(0) which gives nan
+        entropy = -(new_probs * torch.log(old_probs + 1.e-10) + \
+                    (1.0 - new_probs) * torch.log(1.0 - old_probs + 1.e-10))
+
+        # this returns an average of all the entries of the tensor
+        # effective computing L_sur^clip / T
+        # averaged over time-step and number of trajectories
+        # this is desirable because we have normalized our rewards
+        return torch.mean(clipped_surrogate + beta * entropy)
+
+    def store_weights(self, filename='checkpoint.pth'):
+        print("Storing weights")
+        torch.save(self.policy.state_dict(), "weights/" + filename)
+
+    def run_with_stored_weights(self, filename='"final_weights.pth"'):
+        # load stored weights from training
+        self.policy.load_state_dict(torch.load("weights/" + filename))
+
+        env_info = self.env.reset(train_mode=False)[self.brain_name]  # reset the environment
+        scores = np.zeros(self.num_agents)  # initialize the score (for each agent)
+        while True:
+            actions = np.random.randn(self.num_agents, self.action_size)  # select an action (for each agent)
+            actions = np.clip(actions, -1, 1)  # all actions between -1 and 1
+            env_info = self.env.step(actions)[self.brain_name]  # send all actions to tne environment
+            dones = env_info.local_done  # see if episode finished
+            scores += env_info.rewards  # update the score (for each agent)
             if np.any(dones):  # exit loop if episode finished
                 break
         print('Total score (averaged over agents) this episode: {}'.format(np.mean(scores)))
 
-        # for i_episode in range(1, n_episodes + 1):
-        #     env_info = self.env.reset(train_mode=True)[self.brain_name]
-        #     state = env_info.vector_observations[0]
-        #     score = 0
-        #     for t in range(max_t):
-        #         action = self.agent.act(state, eps)
-        #         env_info = self.env.step(action)[self.brain_name]
-        #         next_state = env_info.vector_observations[0]
-        #         reward = env_info.rewards[0]
-        #         done = env_info.local_done[0]
-        #
-        #         self.agent.step(state, action, reward, next_state, done)
-        #         state = next_state
-        #         score += reward
-        #         if done:
-        #             break
-        #
-        #     scores_window.append(score)  # save most recent score
-        #     scores.append(score)  # save most recent score
-        #     eps = max(eps_end, eps_decay * eps)  # decrease epsilon
-        #
-        #     mean_recent_score = np.mean(scores_window)
-        #     print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, mean_recent_score), end="")
-        #     if i_episode % checkpoint_interval == 0:
-        #         print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, mean_recent_score))
-        #         self.store_weights(f"checkpoint_{i_episode}.pth")
-        #     if np.mean(scores_window) >= self.solve_threshold:
-        #         print('\nEnvironment solved in {:d} episodes!\tAverage Score: {:.2f}'
-        #               .format(i_episode - self.score_window_length, mean_recent_score))
-        #         break
 
-        self.env.close()
-
-        return scores
-
-    def store_weights(self, filename='checkpoint.pth'):
-        print("Storing weights")
-        # torch.save(self.agent.qnetwork_local.state_dict(), "weights/" + filename)
-
-    def run_with_stored_weights(self, filename='"final_weights.pth"'):
-        pass
-        # load stored weights from training
-        # self.agent.qnetwork_local.load_state_dict(torch.load("weights/" + filename))
-        #
-        # print("Running agent with trained weights")
-        # env_info = self.env.reset(train_mode=False)[self.brain_name]  # reset the environment
-        # state = env_info.vector_observations[0]  # get the current state
-        # score = 0  # initialize the score
-        # while True:
-        #     action = self.agent.act(state)  # select greedy action
-        #     env_info = self.env.step(action)[self.brain_name]
-        #     next_state = env_info.vector_observations[0]
-        #     reward = env_info.rewards[0]
-        #     done = env_info.local_done[0]
-        #     score += reward
-        #     state = next_state
-        #     if done:
-        #         break
-        #
-        # print("Score: {}".format(score))
+# convert states to probability, passing through the policy
+def states_to_prob(policy, states):
+    states = torch.stack(states)
+    policy_input = states.view(-1,*states.shape[-3:])
+    return policy(policy_input).view(states.shape[:-3])

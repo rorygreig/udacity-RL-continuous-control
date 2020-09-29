@@ -14,7 +14,7 @@ def main():
     train = parsed_args.train
 
     env = UnityEnvironment(file_name="./Reacher_Linux_many_agents/Reacher.x86_64")
-    ppo = PPO(env, solve_threshold=15.0)
+    ppo = PPO(env)
 
     weights_filename = "final_weights.pth"
 
