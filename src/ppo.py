@@ -101,6 +101,8 @@ class PPO:
         for t in range(tmax):
             states = torch.from_numpy(states).float().to(device)
             actions, probs = self.policy.get_action_probs(states)
+            actions = actions.cpu().detach().numpy()
+            probs = probs.cpu().detach().numpy()
             env_info = self.env.step(actions)[self.brain_name]
 
             state_list.append(states)
@@ -137,13 +139,14 @@ class PPO:
         rewards = torch.tensor(rewards_normalized, dtype=torch.float, device=device)
 
         # convert states to probabilities
-        _, new_probs = self.policy.get_action_probs(states)
+        _, new_probs = self.policy.get_action_probs(torch.stack(states))
 
         # ratio for clipping
         ratio = new_probs / old_probs
 
         # clipped function
         clip = torch.clamp(ratio, 1 - epsilon, 1 + epsilon)
+        rewards = rewards.unsqueeze(2)
         clipped_surrogate = torch.min(ratio * rewards, clip * rewards)
 
         # include a regularization term

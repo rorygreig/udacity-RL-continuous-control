@@ -18,7 +18,6 @@ class Policy:
         # calculate log probs from action gaussian distribution
         probs = action_dist.log_prob(actions)
 
-        # return actions.cpu().numpy(), probs.cpu().detach().numpy()
         return actions, probs
 
     # # convert states to probability, passing through the policy
