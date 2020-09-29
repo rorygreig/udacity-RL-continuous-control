@@ -65,7 +65,7 @@ class PPO:
 
             # gradient ascent step
             for _ in range(sgd_epoch):
-                loss = -self.clipped_surrogate(old_probs, states, actions, rewards, discount=discount, epsilon=epsilon,
+                loss = -self.clipped_surrogate(old_probs, states, rewards, discount=discount, epsilon=epsilon,
                                                beta=beta)
 
                 self.optimizer.zero_grad()
@@ -91,7 +91,6 @@ class PPO:
     def collect_trajectories(self, tmax=200):
 
         env_info = self.env.reset(train_mode=True)[self.brain_name]  # reset the environment
-        states = env_info.vector_observations  # get the current state (for each agent)
         scores = np.zeros(self.num_agents)  # initialize the score (for each agent)
 
         # initialize returning lists and start the game!
@@ -101,17 +100,19 @@ class PPO:
         action_list = []
 
         for t in range(tmax):
+            # TODO: should we be generating actions based on the policy here???
             actions = np.random.randn(self.num_agents, self.action_size)  # select an action (for each agent)
             actions = np.clip(actions, -1, 1)  # all actions between -1 and 1
-            env_info = self.env.step(actions)[self.brain_name]  # send all actions to tne environment
+            env_info = self.env.step(actions)[self.brain_name]
 
-            next_states = env_info.vector_observations  # get next state (for each agent)
-            rewards = env_info.rewards  # get reward (for each agent)
-            dones = env_info.local_done  # see if episode finished
-            scores += env_info.rewards  # update the score (for each agent)
-            states = next_states  # roll over states to next time step
+            next_states = env_info.vector_observations
+            rewards = env_info.rewards
+            dones = env_info.local_done
+            scores += env_info.rewards
+            states = next_states
 
             # calculate probs using policy
+            # TODO: how to do this for multiple agents at once??
             probs = self.policy(states).squeeze().cpu().detach().numpy()
 
             state_list.append(states)
@@ -127,27 +128,24 @@ class PPO:
 
     # clipped surrogate function
     # similar as -policy_loss for REINFORCE, but for PPO
-    def clipped_surrogate(self, old_probs, states, actions, rewards, discount, epsilon, beta):
-
+    def clipped_surrogate(self, old_probs, states, rewards, discount, epsilon, beta):
         discount = discount ** np.arange(len(rewards))
         rewards = np.asarray(rewards) * discount[:, np.newaxis]
 
         # convert rewards to future rewards
         rewards_future = rewards[::-1].cumsum(axis=0)[::-1]
 
+        # normalize rewards
         mean = np.mean(rewards_future, axis=1)
         std = np.std(rewards_future, axis=1) + 1.0e-10
-
         rewards_normalized = (rewards_future - mean[:, np.newaxis]) / std[:, np.newaxis]
 
         # convert everything into pytorch tensors and move to gpu if available
-        actions = torch.tensor(actions, dtype=torch.int8, device=device)
         old_probs = torch.tensor(old_probs, dtype=torch.float, device=device)
         rewards = torch.tensor(rewards_normalized, dtype=torch.float, device=device)
 
         # convert states to policy (or probability)
         new_probs = states_to_prob(self.policy, states)
-        # new_probs = torch.where(actions == RIGHT, new_probs, 1.0 - new_probs)
 
         # ratio for clipping
         ratio = new_probs / old_probs
@@ -159,8 +157,7 @@ class PPO:
         # include a regularization term
         # this steers new_policy towards 0.5
         # add in 1.e-10 to avoid log(0) which gives nan
-        entropy = -(new_probs * torch.log(old_probs + 1.e-10) + \
-                    (1.0 - new_probs) * torch.log(1.0 - old_probs + 1.e-10))
+        entropy = -(new_probs * torch.log(old_probs + 1.e-10) + (1.0 - new_probs) * torch.log(1.0 - old_probs + 1.e-10))
 
         # this returns an average of all the entries of the tensor
         # effective computing L_sur^clip / T
