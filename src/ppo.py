@@ -120,7 +120,7 @@ class PPO:
 
     # clipped surrogate function
     # similar as -policy_loss for REINFORCE, but for PPO
-    def clipped_surrogate(self, old_probs, states, rewards, discount, epsilon, beta):
+    def clipped_surrogate(self, old_log_probs, states, rewards, discount, epsilon, beta):
         discount = discount ** np.arange(len(rewards))
         rewards = np.asarray(rewards) * discount[:, np.newaxis]
 
@@ -133,14 +133,14 @@ class PPO:
         rewards_normalized = (rewards_future - mean[:, np.newaxis]) / std[:, np.newaxis]
 
         # convert everything into pytorch tensors and move to gpu if available
-        old_probs = torch.tensor(old_probs, dtype=torch.float, device=device)
+        old_log_probs = torch.tensor(old_log_probs, dtype=torch.float, device=device)
         rewards = torch.tensor(rewards_normalized, dtype=torch.float, device=device)
 
         # convert states to probabilities
-        _, new_probs = self.policy.get_action_probs(torch.stack(states))
+        _, new_log_probs = self.policy.get_action_probs(torch.stack(states))
 
         # ratio for clipping
-        ratio = new_probs / old_probs
+        ratio = new_log_probs / old_log_probs
 
         # clipped function
         clip = torch.clamp(ratio, 1 - epsilon, 1 + epsilon)
@@ -149,8 +149,8 @@ class PPO:
 
         # include a regularization term
         # this steers new_policy towards 0.5
-        # add in 1.e-10 to avoid log(0) which gives nan
-        entropy = -(new_probs * torch.log(old_probs + 1.e-10) + (1.0 - new_probs) * torch.log(1.0 - old_probs + 1.e-10))
+        new_probs = torch.exp(new_log_probs)
+        entropy = -(new_probs * old_log_probs + (1.0 - new_probs) * (1.0 - old_log_probs))
 
         # this returns an average of all the entries of the tensor
         # effective computing L_sur^clip / T
