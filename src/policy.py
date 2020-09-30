@@ -22,7 +22,7 @@ class Policy:
 
 
 class PolicyNet(nn.Module):
-    def __init__(self, state_size, action_size, seed, fc1_units=128, fc2_units=64, fc3_units=32):
+    def __init__(self, state_size, action_size, seed, fc1_units=80, fc2_units=32, fc3_units=32):
         """Initialize parameters and build model.
         Params
         ======
@@ -36,15 +36,15 @@ class PolicyNet(nn.Module):
         self.seed = torch.manual_seed(seed)
         self.fc1 = nn.Linear(state_size, fc1_units)
         self.fc2 = nn.Linear(fc1_units, fc2_units)
-        self.fc3 = nn.Linear(fc2_units, fc3_units)
-        self.loc = nn.Linear(fc3_units, action_size)
-        self.scale = nn.Linear(fc3_units, action_size)
+        # self.fc3 = nn.Linear(fc2_units, fc3_units)
+        self.loc = nn.Linear(fc2_units, action_size)
+        self.scale = nn.Linear(fc2_units, action_size)
 
     def forward(self, state):
         """Build a network that parameterises a gaussian distribution for continuous actions."""
         x = F.relu(self.fc1(state))
         x = F.relu(self.fc2(x))
-        x = F.relu(self.fc3(x))
+        # x = F.relu(self.fc3(x))
 
         # take exponential of scale to guarantee non-negative value
         scale = torch.exp(self.scale(x))

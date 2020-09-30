@@ -12,7 +12,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 class PPO:
     """Interacts with and learns from the environment."""
 
-    def __init__(self, env, seed=1, learning_rate=1e-4):
+    def __init__(self, env, seed=1, learning_rate=2e-4):
         """Initialize an Agent object.
         
         Params
@@ -41,7 +41,7 @@ class PPO:
         self.policy = Policy(self.state_size, self.action_size, seed)
         self.optimizer = optim.Adam(self.policy.policy_net.parameters(), lr=learning_rate)
 
-    def train(self, n_episodes=2000, discount=0.98, epsilon=0.2, beta=0.01, tmax=700, sgd_epoch=6):
+    def train(self, n_episodes=2000, discount=0.99, epsilon=0.09, beta=0.015, tmax=1000, sgd_epoch=4):
         """Proximal Policy Optimization.
         Params
         ======
@@ -120,7 +120,6 @@ class PPO:
         return prob_list, state_list, action_list, reward_list
 
     # clipped surrogate function
-    # similar as -policy_loss for REINFORCE, but for PPO
     def clipped_surrogate(self, old_log_probs, states, rewards, discount, epsilon, beta):
         discount = discount ** np.arange(len(rewards))
         rewards = np.asarray(rewards) * discount[:, np.newaxis]
@@ -159,7 +158,7 @@ class PPO:
         # this is desirable because we have normalized our rewards
         regularized_surrogate = clipped_surrogate + beta * entropy
         if torch.isnan(regularized_surrogate).any():
-            print("\nSurrogate has nan values")
+            print("\nWarning: surrogate has nan values")
         return torch.mean(regularized_surrogate)
 
     def store_weights(self, filename='checkpoint.pth'):
