@@ -143,7 +143,6 @@ class PPO:
 
         # clipped function
         clip = torch.clamp(ratio, 1 - epsilon, 1 + epsilon)
-        # rewards = rewards.unsqueeze(2)
         clipped_surrogate = torch.min(ratio * rewards, clip * rewards)
 
         # include a regularization term
@@ -151,7 +150,6 @@ class PPO:
         old_probs = torch.exp(old_log_probs)
         new_probs = torch.exp(new_log_probs)
         entropy = -(new_probs * torch.log(old_probs) + (1.0 - new_probs) * torch.log(1.0 - old_probs))
-        # entropy = -(new_probs * old_log_probs + (1.0 - new_probs) * (1.0 - old_log_probs))
 
         # this returns an average of all the entries of the tensor
         # effective computing L_sur^clip / T

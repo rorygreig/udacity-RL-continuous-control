@@ -15,7 +15,6 @@ class Policy:
         actions = torch.clamp(actions, -1, 1)
 
         # calculate log probs from action gaussian distribution
-        # probs = action_dist.log_prob(actions)
         probs = action_dist.log_prob(actions).sum(axis=-1)
 
         return actions, probs
