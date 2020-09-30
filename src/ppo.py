@@ -12,7 +12,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 class PPO:
     """Interacts with and learns from the environment."""
 
-    def __init__(self, env, seed=1, learning_rate=1e-4):
+    def __init__(self, env, seed=1, learning_rate=3e-4):
         """Initialize an Agent object.
         
         Params
@@ -41,7 +41,7 @@ class PPO:
         self.policy = Policy(self.state_size, self.action_size, seed)
         self.optimizer = optim.Adam(self.policy.policy_net.parameters(), lr=learning_rate)
 
-    def train(self, n_episodes=2000, discount=0.99, epsilon=0.1, beta=0.01, tmax=200, sgd_epoch=10):
+    def train(self, n_episodes=5000, discount=0.99, epsilon=0.2, beta=0.01, tmax=2000, sgd_epoch=40):
         """Proximal Policy Optimization.
         Params
         ======
@@ -74,7 +74,7 @@ class PPO:
                 del loss
 
             epsilon *= .999
-            beta *= .995
+            beta *= .997
 
             # get the average reward for each agent
             score = np.mean(total_rewards)
@@ -119,7 +119,6 @@ class PPO:
         # return pi_theta, states, actions, rewards, probability
         return prob_list, state_list, action_list, reward_list
 
-    # clipped surrogate function
     def clipped_surrogate(self, old_log_probs, states, rewards, discount, epsilon, beta):
         discount = discount ** np.arange(len(rewards))
         rewards = np.asarray(rewards) * discount[:, np.newaxis]
@@ -140,11 +139,11 @@ class PPO:
         _, new_log_probs = self.policy.get_action_probs(torch.stack(states))
 
         # ratio for clipping
-        ratio = new_log_probs / old_log_probs
+        ratio = torch.exp(new_log_probs - old_log_probs)
 
         # clipped function
         clip = torch.clamp(ratio, 1 - epsilon, 1 + epsilon)
-        rewards = rewards.unsqueeze(2)
+        # rewards = rewards.unsqueeze(2)
         clipped_surrogate = torch.min(ratio * rewards, clip * rewards)
 
         # include a regularization term

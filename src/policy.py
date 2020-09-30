@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.distributions.normal import Normal
 
 
@@ -16,13 +15,14 @@ class Policy:
         actions = torch.clamp(actions, -1, 1)
 
         # calculate log probs from action gaussian distribution
-        probs = action_dist.log_prob(actions)
+        # probs = action_dist.log_prob(actions)
+        probs = action_dist.log_prob(actions).sum(axis=-1)
 
         return actions, probs
 
 
 class PolicyNet(nn.Module):
-    def __init__(self, state_size, action_size, seed, fc1_units=100, fc2_units=64, fc3_units=32):
+    def __init__(self, state_size, action_size, seed, fc1_units=64, fc2_units=64, fc3_units=32):
         """Initialize parameters and build model.
         Params
         ======
@@ -46,8 +46,8 @@ class PolicyNet(nn.Module):
 
     def forward(self, state):
         """Build a network that parameterises a gaussian distribution for continuous actions."""
-        x = F.tanh(self.fc1(state))
-        x = F.tanh(self.fc2(x))
+        x = torch.tanh(self.fc1(state))
+        x = torch.tanh(self.fc2(x))
         # x = F.relu(self.fc3(x))
 
         # take exponential of log_std to guarantee non-negative value
