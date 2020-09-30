@@ -22,7 +22,7 @@ class Policy:
 
 
 class PolicyNet(nn.Module):
-    def __init__(self, state_size, action_size, seed, fc1_units=64, fc2_units=32, fc3_units=32):
+    def __init__(self, state_size, action_size, seed, fc1_units=128, fc2_units=64, fc3_units=32):
         """Initialize parameters and build model.
         Params
         ======

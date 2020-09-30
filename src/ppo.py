@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.optim as optim
 from tqdm import tqdm
+from torch import autograd
 
 from src.policy import Policy
 
@@ -40,7 +41,7 @@ class PPO:
         self.policy = Policy(self.state_size, self.action_size, seed)
         self.optimizer = optim.Adam(self.policy.policy_net.parameters(), lr=learning_rate)
 
-    def train(self, n_episodes=2000, discount=0.995, epsilon=0.1, beta=0.01, tmax=120, sgd_epoch=4):
+    def train(self, n_episodes=2000, discount=0.98, epsilon=0.2, beta=0.01, tmax=700, sgd_epoch=6):
         """Proximal Policy Optimization.
         Params
         ======
@@ -64,9 +65,9 @@ class PPO:
 
             # gradient ascent step
             for _ in range(sgd_epoch):
-                loss = -self.clipped_surrogate(old_probs, states, rewards, discount=discount, epsilon=epsilon,
-                                               beta=beta)
+                loss = -self.clipped_surrogate(old_probs, states, rewards, discount, epsilon, beta)
 
+                # with autograd.detect_anomaly():
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
@@ -156,7 +157,10 @@ class PPO:
         # effective computing L_sur^clip / T
         # averaged over time-step and number of trajectories
         # this is desirable because we have normalized our rewards
-        return torch.mean(clipped_surrogate + beta * entropy)
+        regularized_surrogate = clipped_surrogate + beta * entropy
+        if torch.isnan(regularized_surrogate).any():
+            print("\nSurrogate has nan values")
+        return torch.mean(regularized_surrogate)
 
     def store_weights(self, filename='checkpoint.pth'):
         print("Storing weights")
