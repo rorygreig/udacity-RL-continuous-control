@@ -12,7 +12,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 class PPO:
     """Interacts with and learns from the environment."""
 
-    def __init__(self, env, seed=1, learning_rate=2e-4):
+    def __init__(self, env, seed=1, learning_rate=1e-4):
         """Initialize an Agent object.
         
         Params
@@ -41,7 +41,7 @@ class PPO:
         self.policy = Policy(self.state_size, self.action_size, seed)
         self.optimizer = optim.Adam(self.policy.policy_net.parameters(), lr=learning_rate)
 
-    def train(self, n_episodes=2000, discount=0.99, epsilon=0.09, beta=0.015, tmax=1000, sgd_epoch=4):
+    def train(self, n_episodes=2000, discount=0.99, epsilon=0.1, beta=0.01, tmax=200, sgd_epoch=10):
         """Proximal Policy Optimization.
         Params
         ======
