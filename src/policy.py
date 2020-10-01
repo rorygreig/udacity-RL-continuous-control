@@ -1,23 +1,64 @@
 import torch
 import torch.nn as nn
 from torch.distributions.normal import Normal
+import numpy as np
 
 
 class Policy:
-    def __init__(self, state_size, action_size, seed):
+    def __init__(self, state_size, action_size, num_agents, seed):
         self.policy_net = PolicyNet(state_size, action_size, seed)
+        self.num_agents = num_agents
+        self.action_size = action_size
 
     def get_action_probs(self, states):
         action_dist = self.policy_net(states)
         actions = action_dist.sample()
 
-        # clip all actions between -1 and 1
+        # clamp all actions between -1 and 1
         actions = torch.clamp(actions, -1, 1)
 
         # calculate log probs from action gaussian distribution
         probs = action_dist.log_prob(actions)
 
         return actions, probs
+
+    def surrogate(self, old_log_probs, states, rewards, discount, epsilon, beta):
+        discount = discount ** np.arange(len(rewards))
+        rewards = np.asarray(rewards) * discount[:, np.newaxis]
+
+        # convert rewards to future rewards
+        rewards_future = rewards[::-1].cumsum(axis=0)[::-1]
+
+        # normalize rewards
+        mean = np.mean(rewards_future)
+        std = np.std(rewards_future) + 1.0e-10
+        rewards_normalized = (rewards_future - mean) / std
+
+        # convert everything into pytorch tensors
+        old_log_probs = torch.tensor(old_log_probs, dtype=torch.float)
+        rewards = torch.tensor(rewards_normalized, dtype=torch.float).unsqueeze(2)
+        assert rewards.shape == torch.Size([1001, self.num_agents, 1])
+
+        # convert states to probabilities
+        _, new_log_probs = self.get_action_probs(torch.stack(states).float())
+        assert new_log_probs.shape == torch.Size([1001, self.num_agents, self.action_size])
+
+        # ratio for clipping
+        ratio = torch.exp(new_log_probs - old_log_probs)
+
+        # clipped function
+        clip = torch.clamp(ratio, 1 - epsilon, 1 + epsilon)
+        clipped_surrogate = torch.min(ratio * rewards, clip * rewards)
+
+        # include a regularization term
+        # this steers new_policy towards 0.5
+        old_probs = torch.exp(old_log_probs)
+        new_probs = torch.exp(new_log_probs)
+        entropy = -(new_probs * torch.log(old_probs) + (1.0 - new_probs) * torch.log(1.0 - old_probs))
+
+        regularized_surrogate = clipped_surrogate + beta * entropy
+
+        return torch.mean(regularized_surrogate)
 
 
 class PolicyNet(nn.Module):
