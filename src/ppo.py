@@ -12,7 +12,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 class PPO:
     """Interacts with and learns from the environment."""
 
-    def __init__(self, env, seed=1, learning_rate=3e-4):
+    def __init__(self, env, seed=1, learning_rate=2.5e-4):
         """Initialize an Agent object.
         
         Params
@@ -41,7 +41,7 @@ class PPO:
         self.policy = Policy(self.state_size, self.action_size, seed)
         self.optimizer = optim.Adam(self.policy.policy_net.parameters(), lr=learning_rate)
 
-    def train(self, n_episodes=5000, discount=0.99, epsilon=0.2, beta=0.01, tmax=2000, sgd_epoch=40):
+    def train(self, n_episodes=2000, discount=0.97, epsilon=0.1, beta=0.01, tmax=1100, sgd_epoch=6):
         """Proximal Policy Optimization.
         Params
         ======
@@ -52,7 +52,7 @@ class PPO:
             SGD_epoch
         """
 
-        print(f"Training PPO on continuous control")
+        print("Training PPO on continuous control")
 
         # keep track of progress
         mean_rewards = []
@@ -99,19 +99,20 @@ class PPO:
         action_list = []
 
         for t in range(tmax):
-            states = torch.from_numpy(states).float().to(device)
-            actions, probs = self.policy.get_action_probs(states)
-            actions = actions.cpu().detach().numpy()
-            probs = probs.cpu().detach().numpy()
-            env_info = self.env.step(actions)[self.brain_name]
+            with torch.no_grad():
+                states = torch.from_numpy(states).float()
+                actions, probs = self.policy.get_action_probs(states)
+                actions = actions.numpy()
+                probs = probs.numpy()
+                env_info = self.env.step(actions)[self.brain_name]
 
-            state_list.append(states)
-            reward_list.append(env_info.rewards)
-            prob_list.append(probs)
-            action_list.append(actions)
+                state_list.append(states)
+                reward_list.append(env_info.rewards)
+                prob_list.append(probs)
+                action_list.append(actions)
 
-            states = env_info.vector_observations
-            scores += env_info.rewards
+                states = env_info.vector_observations
+                scores += env_info.rewards
 
             if np.any(env_info.local_done):  # exit loop if episode finished
                 break
@@ -127,16 +128,20 @@ class PPO:
         rewards_future = rewards[::-1].cumsum(axis=0)[::-1]
 
         # normalize rewards
-        mean = np.mean(rewards_future, axis=1)
-        std = np.std(rewards_future, axis=1) + 1.0e-10
-        rewards_normalized = (rewards_future - mean[:, np.newaxis]) / std[:, np.newaxis]
+        mean = np.mean(rewards_future)
+        std = np.std(rewards_future) + 1.0e-10
+        rewards_normalized = (rewards_future - mean) / std
 
         # convert everything into pytorch tensors and move to gpu if available
         old_log_probs = torch.tensor(old_log_probs, dtype=torch.float, device=device)
-        rewards = torch.tensor(rewards_normalized, dtype=torch.float, device=device)
+        rewards = torch.tensor(rewards_normalized, dtype=torch.float, device=device).unsqueeze(2)
+
+        assert rewards.shape == torch.Size([1001, self.num_agents, 1])
 
         # convert states to probabilities
-        _, new_log_probs = self.policy.get_action_probs(torch.stack(states))
+        _, new_log_probs = self.policy.get_action_probs(torch.stack(states).float().to(device))
+
+        assert new_log_probs.shape == torch.Size([1001, self.num_agents, self.action_size])
 
         # ratio for clipping
         ratio = torch.exp(new_log_probs - old_log_probs)
@@ -151,13 +156,8 @@ class PPO:
         new_probs = torch.exp(new_log_probs)
         entropy = -(new_probs * torch.log(old_probs) + (1.0 - new_probs) * torch.log(1.0 - old_probs))
 
-        # this returns an average of all the entries of the tensor
-        # effective computing L_sur^clip / T
-        # averaged over time-step and number of trajectories
-        # this is desirable because we have normalized our rewards
         regularized_surrogate = clipped_surrogate + beta * entropy
-        if torch.isnan(regularized_surrogate).any():
-            print("\nWarning: surrogate has nan values")
+
         return torch.mean(regularized_surrogate)
 
     def store_weights(self, filename='checkpoint.pth'):
@@ -171,7 +171,10 @@ class PPO:
         env_info = self.env.reset(train_mode=False)[self.brain_name]
         states = env_info.vector_observations
         scores = np.zeros(self.num_agents)
+
+        i = 0
         while True:
+            i += 1
             states = torch.from_numpy(states).float().to(device)
             actions, _ = self.policy.get_action_probs(states)
             actions = actions.cpu().detach().numpy()
@@ -184,6 +187,6 @@ class PPO:
 
             if np.any(dones):
                 break
-        print('Total score (averaged over agents) this episode: {}'.format(np.mean(scores)))
+        print(f'Ran for {i} episodes. Final score (averaged over agents): {np.mean(scores)}')
 
 

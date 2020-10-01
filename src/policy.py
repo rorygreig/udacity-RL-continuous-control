@@ -9,19 +9,19 @@ class Policy:
 
     def get_action_probs(self, states):
         action_dist = self.policy_net(states)
-        actions = action_dist.sample().detach()
+        actions = action_dist.sample()
 
         # clip all actions between -1 and 1
         actions = torch.clamp(actions, -1, 1)
 
         # calculate log probs from action gaussian distribution
-        probs = action_dist.log_prob(actions).sum(axis=-1)
+        probs = action_dist.log_prob(actions)
 
         return actions, probs
 
 
 class PolicyNet(nn.Module):
-    def __init__(self, state_size, action_size, seed, fc1_units=64, fc2_units=64, fc3_units=32):
+    def __init__(self, state_size, action_size, seed, fc1_units=80, fc2_units=48, fc3_units=32):
         """Initialize parameters and build model.
         Params
         ======
