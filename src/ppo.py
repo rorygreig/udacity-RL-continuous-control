@@ -97,12 +97,11 @@ class PPO:
                 states = torch.from_numpy(states).float()
                 actions, probs = self.policy.get_action_probs(states)
                 actions = actions.numpy()
-                probs = probs.numpy()
                 env_info = self.env.step(actions)[self.brain_name]
 
-                state_list.append(states)
+                state_list.append(states.numpy())
                 reward_list.append(env_info.rewards)
-                prob_list.append(probs)
+                prob_list.append(probs.numpy())
                 action_list.append(actions)
 
                 states = env_info.vector_observations

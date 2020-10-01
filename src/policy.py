@@ -8,14 +8,12 @@ class Policy:
     def __init__(self, state_size, action_size, num_agents, seed):
         self.policy_net = PolicyNet(state_size, action_size, seed)
         self.num_agents = num_agents
+        self.state_size = state_size
         self.action_size = action_size
 
     def get_action_probs(self, states):
         action_dist = self.policy_net(states)
         actions = action_dist.sample()
-
-        # clamp all actions between -1 and 1
-        actions = torch.clamp(actions, -1, 1)
 
         # calculate log probs from action gaussian distribution
         probs = action_dist.log_prob(actions)
@@ -36,11 +34,14 @@ class Policy:
 
         # convert everything into pytorch tensors
         old_log_probs = torch.tensor(old_log_probs, dtype=torch.float)
-        rewards = torch.tensor(rewards_normalized, dtype=torch.float).unsqueeze(2)
+        rewards = torch.tensor(rewards_normalized, dtype=torch.float).unsqueeze(-1)
         assert rewards.shape == torch.Size([1001, self.num_agents, 1])
 
         # convert states to probabilities
-        _, new_log_probs = self.get_action_probs(torch.stack(states).float())
+
+        states = torch.stack(states).float()
+        assert states.shape == torch.Size([1001, self.num_agents, self.state_size])
+        _, new_log_probs = self.get_action_probs(states)
         assert new_log_probs.shape == torch.Size([1001, self.num_agents, self.action_size])
 
         # ratio for clipping
