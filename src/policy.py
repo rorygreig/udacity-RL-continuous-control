@@ -15,6 +15,9 @@ class Policy:
         action_dist = self.policy_net(states)
         actions = action_dist.sample()
 
+        # clamp all actions between -1 and 1
+        actions = torch.clamp(actions, -1, 1)
+
         # calculate log probs from action gaussian distribution
         probs = action_dist.log_prob(actions)
 
@@ -37,10 +40,11 @@ class Policy:
         rewards = torch.tensor(rewards_normalized, dtype=torch.float).unsqueeze(-1)
         assert rewards.shape == torch.Size([1001, self.num_agents, 1])
 
-        # convert states to probabilities
-
-        states = torch.stack(states).float()
+        states = torch.tensor(states, dtype=torch.float)
+        # states = torch.stack(states).float()
         assert states.shape == torch.Size([1001, self.num_agents, self.state_size])
+
+        # convert states to probabilities
         _, new_log_probs = self.get_action_probs(states)
         assert new_log_probs.shape == torch.Size([1001, self.num_agents, self.action_size])
 
