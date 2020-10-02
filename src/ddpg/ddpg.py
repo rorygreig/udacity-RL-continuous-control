@@ -35,7 +35,10 @@ class DDPG:
 
         print(f"\nState size: {self.state_size}, action size: {self.action_size}, number of agents: {self.num_agents}")
 
-        self.agent = Agent(self.state_size, self.action_size, self.num_agents, random_seed=10)
+        self.agent = Agent(self.state_size, self.action_size, random_seed=10)
+
+        self.newtwork_update_period = 20
+        self.checkpoint_period = 50
 
     def train(self, n_episodes=2000, max_t=1100):
         scores_deque = deque(maxlen=100)
@@ -46,7 +49,7 @@ class DDPG:
             self.agent.reset()
             episode_scores = np.zeros(self.num_agents)
             for t in range(max_t):
-                actions = self.agent.act(states)
+                actions = [self.agent.act(state) for state in states]
                 env_info = self.env.step(actions)[self.brain_name]
 
                 rewards = env_info.rewards
@@ -55,7 +58,12 @@ class DDPG:
 
                 states = env_info.vector_observations
 
-                self.agent.step(states, actions, rewards, next_states, dones)
+                for s, a, r, s_next, d in zip(states, actions, rewards, next_states, dones):
+                    self.agent.store_experience(s, a, r, s_next, d)
+
+                if t % self.newtwork_update_period == 0:
+                    self.agent.update_networks(num_updates=10)
+
                 states = next_states
                 episode_scores += env_info.rewards
                 if np.any(env_info.local_done):
@@ -68,12 +76,14 @@ class DDPG:
             average_score = np.mean(scores_deque)
 
             print(f"\nEpisode {i_episode}\tAverage Score: {average_score:.2f}\tScore: {score:.2f}")
-            if i_episode % 100 == 0:
+            if i_episode % self.checkpoint_period == 0:
                 self.store_weights('checkpoint')
                 plot_scores(scores)
                 print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_deque)))
 
-            # TODO: add stopping condition based on average score
+            if average_score > 30:
+                print("Reached target average score, finishing training")
+                break
 
         self.store_weights('final')
         return scores
@@ -96,7 +106,7 @@ class DDPG:
         while True:
             i += 1
             with torch.no_grad():
-                actions = self.agent.act(states)
+                actions = self.agent.act(states, add_noise=False)
 
                 env_info = self.env.step(actions)[self.brain_name]
 
