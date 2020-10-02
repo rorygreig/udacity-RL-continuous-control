@@ -4,6 +4,7 @@ from collections import deque
 from tqdm import tqdm
 
 from src.ddpg.ddpg_agent import Agent
+from src.plotting import plot_scores
 
 
 class DDPG:
@@ -39,12 +40,12 @@ class DDPG:
     def train(self, n_episodes=2000, max_t=700):
         scores_deque = deque(maxlen=100)
         scores = []
-        for i_episode in tqdm(range(1, n_episodes+1)):
+        for i_episode in range(1, n_episodes+1):
             env_info = self.env.reset(train_mode=True)[self.brain_name]
             states = env_info.vector_observations
             self.agent.reset()
             episode_scores = np.zeros(self.num_agents)
-            for t in range(max_t):
+            for t in tqdm(range(max_t)):
                 actions = self.agent.act(states)
                 env_info = self.env.step(actions)[self.brain_name]
 
@@ -64,10 +65,15 @@ class DDPG:
             scores_deque.append(score)
             scores.append(score)
 
-            print('\rEpisode {}\tAverage Score: {:.2f}\tScore: {:.2f}'.format(i_episode, np.mean(scores_deque), score), end="")
+            average_score = np.mean(scores_deque)
+
+            print(f"\rEpisode {i_episode}\tAverage Score: {average_score:.2f}\tScore: {score:.2f}")
             if i_episode % 100 == 0:
                 self.store_weights('checkpoint')
+                plot_scores(scores)
                 print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_deque)))
+
+            # TODO: add stopping condition based on average score
 
         self.store_weights('final')
         return scores

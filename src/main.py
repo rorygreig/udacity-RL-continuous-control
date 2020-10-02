@@ -1,9 +1,8 @@
 import argparse
 from unityagents import UnityEnvironment
-import numpy as np
-import matplotlib.pyplot as plt
 
 from src.ddpg.ddpg import DDPG
+from src.plotting import plot_scores
 
 
 def main():
@@ -24,15 +23,6 @@ def main():
         plot_scores(scores)
     else:
         ddpg.run_with_stored_weights(weights_filename)
-
-
-def plot_scores(scores):
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    plt.plot(np.arange(len(scores)), scores)
-    plt.ylabel('Score')
-    plt.xlabel('Episode #')
-    plt.show()
 
 
 if __name__ == "__main__":
