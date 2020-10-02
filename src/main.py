@@ -3,7 +3,7 @@ from unityagents import UnityEnvironment
 import numpy as np
 import matplotlib.pyplot as plt
 
-from src.ppo import PPO
+from src.ddpg.ddpg import DDPG
 
 
 def main():

@@ -7,8 +7,6 @@ from src.ppo.policy import Policy
 
 
 class PPO:
-    """Interacts with and learns from the environment."""
-
     def __init__(self, env, seed=1, learning_rate=2.5e-4):
         """Initialize an Agent object.
         

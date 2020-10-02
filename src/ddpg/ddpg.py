@@ -1,60 +1,102 @@
-import gym
 import torch
 import numpy as np
 from collections import deque
-import matplotlib.pyplot as plt
 
 from src.ddpg.ddpg_agent import Agent
 
-env = gym.make('BipedalWalker-v3')
-env.seed(10)
-agent = Agent(state_size=env.observation_space.shape[0], action_size=env.action_space.shape[0], random_seed=10)
 
-def ddpg(n_episodes=2000, max_t=700):
-    scores_deque = deque(maxlen=100)
-    scores = []
-    max_score = -np.Inf
-    for i_episode in range(1, n_episodes+1):
-        state = env.reset()
-        agent.reset()
-        score = 0
-        for t in range(max_t):
-            action = agent.act(state)
-            next_state, reward, done, _ = env.step(action)
-            agent.step(state, action, reward, next_state, done)
-            state = next_state
-            score += reward
-            if done:
+class DDPG:
+    def __init__(self, env):
+        """Initialize an Agent object.
+
+        Params
+        ======
+            env: parallel environment
+            num_agents: number of agents in environment
+            state_size (int): dimension of each state
+            action_size (int): dimension of each action
+            seed (int): random seed
+        """
+
+        self.env = env
+
+        # get the default brain
+        self.brain_name = env.brain_names[0]
+        brain = env.brains[self.brain_name]
+
+        env_info = env.reset(train_mode=True)[self.brain_name]
+
+        state = env_info.vector_observations[0]
+        self.state_size = len(state)
+        self.action_size = brain.vector_action_space_size
+        self.num_agents = len(env_info.agents)
+
+        print(f"\nState size: {self.state_size}, action size: {self.action_size}, number of agents: {self.num_agents}")
+
+        self.agent = Agent(state_size=env.observation_space.shape[0], action_size=env.action_space.shape[0], random_seed=10)
+
+    def train(self, n_episodes=2000, max_t=700):
+        scores_deque = deque(maxlen=100)
+        scores = []
+        for i_episode in range(1, n_episodes+1):
+            env_info = self.env.reset(train_mode=True)[self.brain_name]
+            states = env_info.vector_observations
+            self.agent.reset()
+            episode_scores = np.zeros(self.num_agents)
+            for t in range(max_t):
+                actions = self.agent.act(states)
+                env_info = self.env.step(actions)[self.brain_name]
+
+                rewards = env_info.rewards
+                next_states = env_info.vector_observations
+                dones = env_info.local_done
+
+                states = env_info.vector_observations
+
+                self.agent.step(states, actions, rewards, next_states, dones)
+                states = next_states
+                episode_scores += env_info.rewards
+                if np.any(env_info.local_done):
+                    break
+
+            score = np.mean(scores)
+            scores_deque.append(score)
+            scores.append(score)
+
+            print('\rEpisode {}\tAverage Score: {:.2f}\tScore: {:.2f}'.format(i_episode, np.mean(scores_deque), score), end="")
+            if i_episode % 100 == 0:
+                self.store_weights('checkpoint')
+                print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_deque)))
+
+        self.store_weights('final')
+        return scores
+
+    def store_weights(self, filename_prefix='checkpoint'):
+        print("Storing weights")
+        torch.save(self.agent.actor_local.state_dict(), "weights/" + filename_prefix + '_actor.pth')
+        torch.save(self.agent.critic_local.state_dict(), "weights/" + filename_prefix + '_critic.pth')
+
+    def run_with_stored_weights(self, filename='"final_weights.pth"'):
+        # load stored weights from training
+        self.agent.actor_local.load_state_dict(torch.load("weights/final_actor.pth"))
+        self.agent.critic_local.load_state_dict(torch.load("weights/final_critic.pth"))
+
+        env_info = self.env.reset(train_mode=False)[self.brain_name]
+        states = env_info.vector_observations
+        scores = np.zeros(self.num_agents)
+
+        i = 0
+        while True:
+            i += 1
+            with torch.no_grad():
+                actions = self.agent.act(states)
+
+                env_info = self.env.step(actions)[self.brain_name]
+
+                states = env_info.vector_observations
+                dones = env_info.local_done
+                scores += env_info.rewards
+
+            if np.any(dones):
                 break
-        scores_deque.append(score)
-        scores.append(score)
-        print('\rEpisode {}\tAverage Score: {:.2f}\tScore: {:.2f}'.format(i_episode, np.mean(scores_deque), score), end="")
-        if i_episode % 100 == 0:
-            torch.save(agent.actor_local.state_dict(), 'checkpoint_actor.pth')
-            torch.save(agent.critic_local.state_dict(), 'checkpoint_critic.pth')
-            print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_deque)))
-    return scores
-
-scores = ddpg()
-
-fig = plt.figure()
-ax = fig.add_subplot(111)
-plt.plot(np.arange(1, len(scores)+1), scores)
-plt.ylabel('Score')
-plt.xlabel('Episode #')
-plt.show()
-
-agent.actor_local.load_state_dict(torch.load('checkpoint_actor.pth'))
-agent.critic_local.load_state_dict(torch.load('checkpoint_critic.pth'))
-
-state = env.reset()
-agent.reset()
-while True:
-    action = agent.act(state)
-    env.render()
-    next_state, reward, done, _ = env.step(action)
-    state = next_state
-    if done:
-        break
-
-env.close()
+        print(f'Ran for {i} episodes. Final score (averaged over agents): {np.mean(scores)}')

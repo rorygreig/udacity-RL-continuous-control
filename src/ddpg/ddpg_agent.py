@@ -3,7 +3,7 @@ import random
 import copy
 from collections import namedtuple, deque
 
-from model import Actor, Critic
+from src.ddpg.model import Actor, Critic
 
 import torch
 import torch.nn.functional as F
@@ -19,7 +19,8 @@ WEIGHT_DECAY = 0.0001   # L2 weight decay
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-class Agent():
+
+class Agent:
     """Interacts with and learns from the environment."""
     
     def __init__(self, state_size, action_size, random_seed):
