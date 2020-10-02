@@ -49,7 +49,7 @@ class DDPG:
             self.agent.reset()
             episode_scores = np.zeros(self.num_agents)
             for t in range(max_t):
-                actions = [self.agent.act(state) for state in states]
+                actions = np.array([self.agent.act(state) for state in states])
                 env_info = self.env.step(actions)[self.brain_name]
 
                 rewards = env_info.rewards
@@ -62,7 +62,8 @@ class DDPG:
                     self.agent.store_experience(s, a, r, s_next, d)
 
                 if t % self.newtwork_update_period == 0:
-                    self.agent.update_networks(num_updates=10)
+                    for i in range(10):
+                        self.agent.update_networks()
 
                 states = next_states
                 episode_scores += env_info.rewards
@@ -93,7 +94,7 @@ class DDPG:
         torch.save(self.agent.actor_local.state_dict(), "weights/" + filename_prefix + '_actor.pth')
         torch.save(self.agent.critic_local.state_dict(), "weights/" + filename_prefix + '_critic.pth')
 
-    def run_with_stored_weights(self, filename='"final_weights.pth"'):
+    def run_with_stored_weights(self):
         # load stored weights from training
         self.agent.actor_local.load_state_dict(torch.load("weights/final_actor.pth"))
         self.agent.critic_local.load_state_dict(torch.load("weights/final_critic.pth"))
