@@ -14,16 +14,16 @@ def main():
     train = parsed_args.train
 
     env = UnityEnvironment(file_name="./Reacher_Linux_many_agents/Reacher.x86_64")
-    ppo = PPO(env)
+    ddpg = DDPG(env)
 
     weights_filename = "final_weights.pth"
 
     if train:
-        scores = ppo.train()
-        ppo.store_weights(weights_filename)
+        scores = ddpg.train()
+        ddpg.store_weights(weights_filename)
         plot_scores(scores)
     else:
-        ppo.run_with_stored_weights(weights_filename)
+        ddpg.run_with_stored_weights(weights_filename)
 
 
 def plot_scores(scores):
