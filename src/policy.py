@@ -59,7 +59,8 @@ class Policy:
         # this steers new_policy towards 0.5
         old_probs = torch.exp(old_log_probs)
         new_probs = torch.exp(new_log_probs)
-        entropy = -(new_probs * torch.log(old_probs) + (1.0 - new_probs) * torch.log(1.0 - old_probs))
+        entropy = -(new_probs * torch.log(old_probs) + (torch.tensor(1.0) - new_probs) *
+                    torch.log(torch.tensor(1.0) - old_probs))
 
         regularized_surrogate = clipped_surrogate + beta * entropy
 
@@ -85,8 +86,8 @@ class PolicyNet(nn.Module):
 
         # std dev of output distribution is a standalone parameter to be optimized
         log_std = -0.5 * torch.ones(action_size, dtype=torch.float)
-        self.log_std = torch.nn.Parameter(log_std)
-        self.mean = nn.Linear(fc2_units, action_size)
+        self.log_std = torch.nn.Parameter(log_std, requires_grad=True)
+        self.mu = nn.Linear(fc2_units, action_size)
         # self.scale = nn.Linear(fc2_units, action_size)
 
     def forward(self, state):
@@ -97,5 +98,5 @@ class PolicyNet(nn.Module):
 
         # take exponential of log_std to guarantee non-negative value
         std_dev = torch.exp(self.log_std)
-        return Normal(self.mean(x), std_dev)
+        return Normal(self.mu(x), std_dev)
 
