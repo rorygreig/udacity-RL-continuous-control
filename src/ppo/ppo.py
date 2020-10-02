@@ -2,9 +2,8 @@ import numpy as np
 import torch
 import torch.optim as optim
 from tqdm import tqdm
-from torch import autograd
 
-from src.policy import Policy
+from src.ppo.policy import Policy
 
 
 class PPO:
@@ -61,7 +60,6 @@ class PPO:
 
             # gradient ascent step
             for _ in range(sgd_epoch):
-                # with autograd.detect_anomaly():
                 self.optimizer.zero_grad()
                 loss = -self.policy.surrogate(old_probs, states, rewards, discount, epsilon, beta)
                 loss.backward()
