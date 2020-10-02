@@ -37,15 +37,15 @@ class DDPG:
 
         self.agent = Agent(self.state_size, self.action_size, self.num_agents, random_seed=10)
 
-    def train(self, n_episodes=2000, max_t=700):
+    def train(self, n_episodes=2000, max_t=1100):
         scores_deque = deque(maxlen=100)
         scores = []
-        for i_episode in range(1, n_episodes+1):
+        for i_episode in tqdm(range(1, n_episodes+1)):
             env_info = self.env.reset(train_mode=True)[self.brain_name]
             states = env_info.vector_observations
             self.agent.reset()
             episode_scores = np.zeros(self.num_agents)
-            for t in tqdm(range(max_t)):
+            for t in range(max_t):
                 actions = self.agent.act(states)
                 env_info = self.env.step(actions)[self.brain_name]
 
@@ -67,7 +67,7 @@ class DDPG:
 
             average_score = np.mean(scores_deque)
 
-            print(f"\rEpisode {i_episode}\tAverage Score: {average_score:.2f}\tScore: {score:.2f}")
+            print(f"\nEpisode {i_episode}\tAverage Score: {average_score:.2f}\tScore: {score:.2f}")
             if i_episode % 100 == 0:
                 self.store_weights('checkpoint')
                 plot_scores(scores)

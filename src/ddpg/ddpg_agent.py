@@ -136,7 +136,7 @@ class Agent:
 class OUNoise:
     """Ornstein-Uhlenbeck process."""
 
-    def __init__(self, shape, seed, mu=0., theta=0.15, sigma=0.05):
+    def __init__(self, shape, seed, mu=0., theta=0.15, sigma=0.2):
         """Initialize parameters and noise process."""
         self.shape = shape
         self.mu = mu * np.ones(shape)
