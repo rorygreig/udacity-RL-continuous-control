@@ -1,6 +1,6 @@
 import numpy as np
-import random
 import copy
+import random
 from collections import namedtuple, deque
 
 from src.ddpg.model import Actor, Critic
@@ -36,7 +36,7 @@ class Agent:
         self.state_size = state_size
         self.action_size = action_size
         self.num_agents = num_agents
-        self.seed = random.seed(random_seed)
+        np.random.seed(random_seed)
 
         # Actor Network (w/ Target Network)
         self.actor_local = Actor(state_size, action_size, random_seed).to(device)
@@ -49,7 +49,7 @@ class Agent:
         self.critic_optimizer = optim.Adam(self.critic_local.parameters(), lr=LR_CRITIC, weight_decay=WEIGHT_DECAY)
 
         # Noise process
-        self.noise = OUNoise(action_size, random_seed)
+        self.noise = OUNoise((num_agents, action_size), random_seed)
 
         # Replay memory
         self.memory = ReplayBuffer(action_size, num_agents, BUFFER_SIZE, BATCH_SIZE, random_seed)
@@ -69,7 +69,7 @@ class Agent:
         states = torch.from_numpy(states).float().to(device)
         self.actor_local.eval()
         with torch.no_grad():
-            actions = self.actor_local(states).cpu().data.numpy()
+            actions = self.actor_local(states).cpu().numpy()
         self.actor_local.train()
         if add_noise:
             actions += self.noise.sample()
@@ -136,12 +136,13 @@ class Agent:
 class OUNoise:
     """Ornstein-Uhlenbeck process."""
 
-    def __init__(self, size, seed, mu=0., theta=0.15, sigma=0.2):
+    def __init__(self, shape, seed, mu=0., theta=0.15, sigma=0.05):
         """Initialize parameters and noise process."""
-        self.mu = mu * np.ones(size)
+        self.shape = shape
+        self.mu = mu * np.ones(shape)
         self.theta = theta
         self.sigma = sigma
-        self.seed = random.seed(seed)
+        np.random.seed(seed)
         self.reset()
 
     def reset(self):
@@ -151,7 +152,7 @@ class OUNoise:
     def sample(self):
         """Update internal state and return it as a noise sample."""
         x = self.state
-        dx = self.theta * (self.mu - x) + self.sigma * np.array([random.random() for i in range(len(x))])
+        dx = self.theta * (self.mu - x) + self.sigma * np.random.random(self.shape)
         self.state = x + dx
         return self.state
 

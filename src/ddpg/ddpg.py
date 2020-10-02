@@ -60,7 +60,7 @@ class DDPG:
                 if np.any(env_info.local_done):
                     break
 
-            score = np.mean(scores)
+            score = np.mean(episode_scores)
             scores_deque.append(score)
             scores.append(score)
 
