@@ -33,7 +33,7 @@ class DDPG:
 
         print(f"\nState size: {self.state_size}, action size: {self.action_size}, number of agents: {self.num_agents}")
 
-        self.agent = Agent(state_size=env.observation_space.shape[0], action_size=env.action_space.shape[0], random_seed=10)
+        self.agent = Agent(self.state_size, self.action_size, self.num_agents, random_seed=10)
 
     def train(self, n_episodes=2000, max_t=700):
         scores_deque = deque(maxlen=100)
