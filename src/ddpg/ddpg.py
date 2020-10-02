@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 from collections import deque
+from tqdm import tqdm
 
 from src.ddpg.ddpg_agent import Agent
 
@@ -38,7 +39,7 @@ class DDPG:
     def train(self, n_episodes=2000, max_t=700):
         scores_deque = deque(maxlen=100)
         scores = []
-        for i_episode in range(1, n_episodes+1):
+        for i_episode in tqdm(range(1, n_episodes+1)):
             env_info = self.env.reset(train_mode=True)[self.brain_name]
             states = env_info.vector_observations
             self.agent.reset()

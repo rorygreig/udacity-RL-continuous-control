@@ -30,6 +30,7 @@ class Agent:
         ======
             state_size (int): dimension of each state
             action_size (int): dimension of each action
+            num_agents (int): number of parallel agents in unity scene
             random_seed (int): random seed
         """
         self.state_size = state_size
@@ -94,11 +95,11 @@ class Agent:
         # ---------------------------- update critic ---------------------------- #
         # Get predicted next-state actions and Q values from target models
         actions_next = self.actor_target(next_states)
-        Q_targets_next = self.critic_target(next_states, actions_next)
+        Q_targets_next = self.critic_target(next_states, actions_next).squeeze()
         # Compute Q targets for current states (y_i)
         Q_targets = rewards + (gamma * Q_targets_next * (1 - dones))
         # Compute critic loss
-        Q_expected = self.critic_local(states, actions)
+        Q_expected = self.critic_local(states, actions).squeeze()
         critic_loss = F.mse_loss(Q_expected, Q_targets)
         # Minimize the loss
         self.critic_optimizer.zero_grad()
@@ -180,11 +181,11 @@ class ReplayBuffer:
         """Randomly sample a batch of experiences from memory."""
         experiences = random.sample(self.memory, k=self.batch_size)
 
-        states = torch.from_numpy(np.vstack([e.state for e in experiences if e is not None])).float().to(device)
-        actions = torch.from_numpy(np.vstack([e.action for e in experiences if e is not None])).float().to(device)
-        rewards = torch.from_numpy(np.vstack([e.reward for e in experiences if e is not None])).float().to(device)
-        next_states = torch.from_numpy(np.vstack([e.next_state for e in experiences if e is not None])).float().to(device)
-        dones = torch.from_numpy(np.vstack([e.done for e in experiences if e is not None]).astype(np.uint8)).float().to(device)
+        states = torch.tensor([e.states for e in experiences if e is not None]).float().to(device)
+        actions = torch.tensor([e.actions for e in experiences if e is not None]).float().to(device)
+        rewards = torch.tensor([e.rewards for e in experiences if e is not None]).float().to(device)
+        next_states = torch.tensor([e.next_states for e in experiences if e is not None]).float().to(device)
+        dones = torch.tensor([e.dones for e in experiences if e is not None]).float().to(device)
 
         return states, actions, rewards, next_states, dones
 
