@@ -37,7 +37,7 @@ class DDPG:
 
         self.agent = Agent(self.state_size, self.action_size, random_seed=10)
 
-        self.newtwork_update_period = 1
+        self.network_update_period = 20
         self.checkpoint_period = 50
 
     def train(self, n_episodes=2000, max_t=1100):
@@ -62,8 +62,8 @@ class DDPG:
                 for s, a, r, s_next, d in zip(states, actions, rewards, next_states, dones):
                     self.agent.store_experience(s, a, r, s_next, d)
 
-                if t % self.newtwork_update_period == 0:
-                    for i in range(1):
+                if t % self.network_update_period == 0:
+                    for i in range(10):
                         self.agent.update_networks()
 
                 states = next_states
