@@ -12,7 +12,7 @@ def main():
     parsed_args = parser.parse_args()
     train = parsed_args.train
 
-    env = UnityEnvironment(file_name="./Reacher_Linux/Reacher.x86_64")
+    env = UnityEnvironment(file_name="./Reacher_Linux_single_agent/Reacher.x86_64")
     ddpg = DDPG(env)
 
     weights_filename = "final_weights.pth"
@@ -22,7 +22,7 @@ def main():
         ddpg.store_weights(weights_filename)
         plot_scores(scores)
     else:
-        ddpg.run_with_stored_weights(weights_filename)
+        ddpg.run_with_stored_weights()
 
 
 if __name__ == "__main__":
