@@ -45,22 +45,21 @@ class DDPG:
         scores = []
         for i_episode in tqdm(range(1, n_episodes+1)):
             env_info = self.env.reset(train_mode=True)[self.brain_name]
-            state = env_info.vector_observations
+            states = env_info.vector_observations
             self.agent.reset()
             episode_scores = np.zeros(self.num_agents)
             for t in range(max_t):
-                # actions = np.array([self.agent.act(state) for state in states])
-                actions = self.agent.act(state)
+                actions = np.array([self.agent.act(state) for state in states])
                 env_info = self.env.step(actions)[self.brain_name]
 
-                reward = env_info.rewards
+                rewards = env_info.rewards
                 next_states = env_info.vector_observations
-                done = env_info.local_done
+                dones = env_info.local_done
 
-                state = env_info.vector_observations
+                states = env_info.vector_observations
 
-                # for s, a, r, s_next, d in zip(states, actions, rewards, next_states, dones):
-                self.agent.store_experience(state, a, r, s_next, d)
+                for s, a, r, s_next, d in zip(states, actions, rewards, next_states, dones):
+                    self.agent.store_experience(s, a, r, s_next, d)
 
                 if t % self.network_update_period == 0:
                     for i in range(10):
