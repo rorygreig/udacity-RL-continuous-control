@@ -12,7 +12,7 @@ def main():
     parsed_args = parser.parse_args()
     train = parsed_args.train
 
-    env = UnityEnvironment(file_name="./Reacher_Linux_single/Reacher.x86_64")
+    env = UnityEnvironment(file_name="./Reacher_Linux_many/Reacher.x86_64")
     ddpg = DDPG(env)
 
     weights_filename = "final_weights.pth"

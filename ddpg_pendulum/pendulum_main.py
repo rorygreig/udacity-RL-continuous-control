@@ -13,7 +13,7 @@ env.seed(2)
 agent = Agent(state_size=env.observation_space.shape[0], action_size=env.action_space.shape[0], random_seed=2)
 
 
-def ddpg(n_episodes=200, max_t=1002, print_every=5):
+def ddpg(n_episodes=200, max_t=1002, print_every=20):
     scores_deque = deque(maxlen=print_every)
     scores = []
     for i_episode in range(1, n_episodes + 1):
