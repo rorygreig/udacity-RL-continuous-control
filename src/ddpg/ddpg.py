@@ -37,7 +37,7 @@ class DDPG:
 
         self.agent = Agent(self.state_size, self.action_size, random_seed=10)
 
-        self.newtwork_update_period = 20
+        self.newtwork_update_period = 1
         self.checkpoint_period = 50
 
     def train(self, n_episodes=2000, max_t=1100):
@@ -45,11 +45,12 @@ class DDPG:
         scores = []
         for i_episode in tqdm(range(1, n_episodes+1)):
             env_info = self.env.reset(train_mode=True)[self.brain_name]
-            states = env_info.vector_observations
+            state = env_info.vector_observations
             self.agent.reset()
             episode_scores = np.zeros(self.num_agents)
             for t in range(max_t):
-                actions = np.array([self.agent.act(state) for state in states])
+                # actions = np.array([self.agent.act(state) for state in states])
+                actions = self.agent.act(state)
                 env_info = self.env.step(actions)[self.brain_name]
 
                 rewards = env_info.rewards
@@ -62,7 +63,7 @@ class DDPG:
                     self.agent.store_experience(s, a, r, s_next, d)
 
                 if t % self.newtwork_update_period == 0:
-                    for i in range(10):
+                    for i in range(1):
                         self.agent.update_networks()
 
                 states = next_states
