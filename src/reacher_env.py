@@ -39,8 +39,8 @@ class ReacherEnv(gym.Env):
 
         return obs, reward, done, {}
 
-    def reset(self):
-        env_info = self.unity_env.reset(train_mode=True)[self.brain_name]
+    def reset(self, train_mode=True):
+        env_info = self.unity_env.reset(train_mode=train_mode)[self.brain_name]
         return env_info.vector_observations[0]
 
     def render(self, mode='human'):
