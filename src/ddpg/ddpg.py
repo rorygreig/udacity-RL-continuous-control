@@ -49,12 +49,11 @@ class DDPG:
             self.agent.reset()
             episode_scores = np.zeros(self.num_agents)
             for t in range(max_t):
-                actions = np.array([self.agent.act(state, add_noise=True) for state in states])
+                actions = np.array([self.agent.act(state, add_noise=False) for state in states])
                 env_info = self.env.step(actions)[self.brain_name]
 
                 rewards = np.array(env_info.rewards)
-                # if np.array(rewards).any():
-                #     print("non zero reward")
+
                 rewards = [1.0 if rew > 0.0 else 0.0 for rew in rewards]
                 next_states = env_info.vector_observations
                 dones = env_info.local_done

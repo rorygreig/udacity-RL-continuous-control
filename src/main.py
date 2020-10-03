@@ -19,7 +19,6 @@ def main():
 
     if train:
         scores = ddpg.train()
-        ddpg.store_weights(weights_filename)
         plot_scores(scores)
     else:
         ddpg.run_with_stored_weights()
