@@ -23,9 +23,9 @@ class ReacherEnv(gym.Env):
         self.action_size = brain.vector_action_space_size
         self.num_agents = len(env_info.agents)
 
-        self.action_space = spaces.Box(low=-1, high=1, shape=self.action_size, dtype=np.float)
+        self.action_space = spaces.Box(low=-1, high=1, shape=(self.action_size), dtype=np.float)
 
-        self.observation_space = spaces.Box(low=-1, high=1, shape=self.state_size, dtype=np.float)
+        self.observation_space = spaces.Box(low=-1, high=1, shape=(self.state_size), dtype=np.float)
 
     def step(self, action):
         env_info = self.unity_env.step(action)[self.brain_name]
@@ -34,8 +34,8 @@ class ReacherEnv(gym.Env):
         done = env_info.local_done
 
         obs = env_info.vector_observations
-        ...
-        return obs, reward, done
+
+        return obs, reward, done, {}
 
     def reset(self):
         env_info = self.unity_env.reset(train_mode=True)[self.brain_name]
