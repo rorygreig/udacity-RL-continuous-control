@@ -27,6 +27,8 @@ class DDPG:
         self.checkpoint_period = 50
 
     def train(self, n_episodes=2000, max_t=1100):
+        print("Training DDPG on continuous control")
+
         recent_scores = deque(maxlen=100)
         scores = []
         for i_episode in tqdm(range(1, n_episodes+1)):
