@@ -31,9 +31,14 @@ class Policy:
         rewards_future = rewards[::-1].cumsum(axis=0)[::-1]
 
         # normalize rewards
-        mean = np.mean(rewards_future)
-        std = np.std(rewards_future) + 1.0e-10
-        rewards_normalized = (rewards_future - mean) / std
+        # mean = np.mean(rewards_future)
+        # std = np.std(rewards_future) + 1.0e-10
+        # rewards_normalized = (rewards_future - mean) / std
+
+        mean = np.mean(rewards_future, axis=1)
+        std = np.std(rewards_future, axis=1) + 1.0e-10
+
+        rewards_normalized = (rewards_future - mean[:, np.newaxis]) / std[:, np.newaxis]
 
         # convert everything into pytorch tensors
         old_log_probs = torch.tensor(old_log_probs, dtype=torch.float)
@@ -90,8 +95,8 @@ class PolicyNet(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        self.fc1.weight.data.uniform_(*hidden_init(self.fc1))
-        self.fc2.weight.data.uniform_(*hidden_init(self.fc2))
+        # self.fc1.weight.data.uniform_(*hidden_init(self.fc1))
+        # self.fc2.weight.data.uniform_(*hidden_init(self.fc2))
         self.mu.weight.data.uniform_(-3e-3, 3e-3)
 
     def forward(self, state):
