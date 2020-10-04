@@ -13,7 +13,7 @@ class DDPG:
 
         Params
         ======
-            env: parallel environment
+            env: OpenAI VectorEnv environment
         """
 
         self.env = env
@@ -31,11 +31,14 @@ class DDPG:
 
         recent_scores = deque(maxlen=100)
         scores = []
+
+        # run for all episodes
         for i_episode in tqdm(range(1, n_episodes+1)):
             states = self.env.reset()
             episode_scores = np.zeros(self.env.num_agents)
 
             for t in range(max_t):
+                # get next actions from actor network
                 actions = np.array([self.agent.act(state) for state in states])
                 next_states, rewards, dones, _ = self.env.step(actions)
 

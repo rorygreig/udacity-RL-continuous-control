@@ -49,13 +49,13 @@ class Agent():
         self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, random_seed)
 
     def store_experience(self, state, action, reward, next_state, done):
-        """Save experience in replay memory, and use random sample from buffer to learn."""
-        # Save experience / reward
+        """Save experience in replay memory."""
         self.memory.add(state, action, reward, next_state, done)
 
     def update_networks(self):
-        # Learn, if enough samples are available in memory
+        """Learn, if enough samples are available in memory"""
         if len(self.memory) > BATCH_SIZE:
+            # sample an experience from the replay buffer
             experiences = self.memory.sample()
             self.learn(experiences, GAMMA)
 
@@ -94,6 +94,7 @@ class Agent():
         # Minimize the loss
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
+        # clip gradient to improve stability
         torch.nn.utils.clip_grad_norm(self.critic_local.parameters(), 1)
         self.critic_optimizer.step()
 
