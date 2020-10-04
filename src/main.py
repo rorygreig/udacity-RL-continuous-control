@@ -17,7 +17,7 @@ def main():
 
     env = ReacherMultiAgentEnv("./Reacher_Linux_many/Reacher.x86_64")
 
-    algo = PPO(env) if use_ppo else DDPG
+    algo = PPO(env) if use_ppo else DDPG(env)
 
     if train:
         scores = algo.train()
