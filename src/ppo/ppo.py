@@ -47,7 +47,6 @@ class PPO:
 
         for i_episode in tqdm(range(n_episodes)):
             old_probs, states, actions, rewards = self.collect_trajectories(tmax=tmax)
-            total_rewards = np.sum(rewards, axis=0)
 
             # gradient ascent step
             for _ in range(sgd_epoch):
@@ -60,6 +59,7 @@ class PPO:
             beta *= .997
 
             # get the average reward for each agent
+            total_rewards = np.sum(rewards, axis=0)
             score = np.mean(total_rewards) / 10.0
             scores.append(score)
             recent_scores.append(score)
@@ -137,7 +137,7 @@ class PPO:
 
                 states = next_states
                 dones = dones
-                scores += rewards
+                scores += np.mean(rewards) / 10.0
 
             if np.any(dones):
                 break
