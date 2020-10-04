@@ -4,7 +4,7 @@ Implementation of "Continuous Control" project from Udacity Deep Reinforcement L
 This is a Deep Reinforcement Learning algorithm to solve the "Continuous Control" Unity environment, where the aim is 
 to keep a robot arm with multiple joints within a target sphere.
 
-This project contains a solution the 2nd continuous control environment, with 20 parallel agents.
+This project contains a solution to Version 2 of the continuous control environment, with 20 parallel agents.
 
 It contains implementations of both the DDPG and PPO algorithm, however only the DDPG implementation successfully solves
 the environment at present.
@@ -20,13 +20,13 @@ The size of the action space is 4, which represents the torque applied to each j
 
 The environment is considered solved when the agent can keep the end of the robot arm within the target sphere. 
 Roughly this corresponds to a score of 30.0, which is calculated from the average reward received by all agents in an episode. 
-Once the average score for the agent over the most recent 100 episodes reaches this threshold 
+Once the average score over all agents and over the most recent 100 episodes reaches this threshold 
 of 30.0 then it is considered solved and the training stops. This threshold can be changed by passing a value
  to the `target_reward` argument of the DDPG class in `src/main.py`.
 
 ### Getting Started
 
-#### install basic requirements
+#### Install basic requirements
 ```
 conda activate drlnd
 pip3 install -r requirements.txt
@@ -51,12 +51,12 @@ in this mode simply run:
 ```
 python src/main.py
 ```
-**OR** to train the neural network weights pass the `--train` flag to run in training mode:
+**OR** to train the neural network weights from scratch pass the `--train` flag to run in training mode:
 ```
 python src/main.py --train
 ```
 
-By default it uses the DDPG algorithm for training, however you can instead choose to use the PPO algorithm by passing the `--ppo` flag, eg.:
+By default the DDPG algorithm is used for training, however you can instead choose to use the PPO algorithm by passing the `--ppo` flag, eg.
 ```
 python src/main.py --train --ppo
 ```
