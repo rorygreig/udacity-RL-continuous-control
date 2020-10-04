@@ -68,7 +68,7 @@ class Policy:
 
 
 class PolicyNet(nn.Module):
-    def __init__(self, state_size, action_size, seed, fc1_units=80, fc2_units=48, fc3_units=32):
+    def __init__(self, state_size, action_size, seed, fc1_units=128, fc2_units=80):
         """Initialize parameters and build model.
         Params
         ======
@@ -82,21 +82,29 @@ class PolicyNet(nn.Module):
         self.seed = torch.manual_seed(seed)
         self.fc1 = nn.Linear(state_size, fc1_units)
         self.fc2 = nn.Linear(fc1_units, fc2_units)
-        # self.fc3 = nn.Linear(fc2_units, fc3_units)
 
         # std dev of output distribution is a standalone parameter to be optimized
         log_std = -0.5 * torch.ones(action_size, dtype=torch.float)
         self.log_std = torch.nn.Parameter(log_std, requires_grad=True)
         self.mu = nn.Linear(fc2_units, action_size)
-        # self.scale = nn.Linear(fc2_units, action_size)
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        self.fc1.weight.data.uniform_(*hidden_init(self.fc1))
+        self.fc2.weight.data.uniform_(*hidden_init(self.fc2))
+        self.mu.weight.data.uniform_(-3e-3, 3e-3)
 
     def forward(self, state):
         """Build a network that parameterises a gaussian distribution for continuous actions."""
         x = torch.tanh(self.fc1(state))
         x = torch.tanh(self.fc2(x))
-        # x = F.relu(self.fc3(x))
 
         # take exponential of log_std to guarantee non-negative value
         std_dev = torch.exp(self.log_std)
         return Normal(self.mu(x), std_dev)
 
+
+def hidden_init(layer):
+    fan_in = layer.weight.data.size()[0]
+    lim = 1. / np.sqrt(fan_in)
+    return (-lim, lim)

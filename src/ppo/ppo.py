@@ -28,7 +28,7 @@ class PPO:
         self.target_reward = target_reward
         self.checkpoint_period = 50
 
-    def train(self, n_episodes=2000, discount=0.99, epsilon=0.1, beta=0.01, tmax=1100, sgd_epoch=4):
+    def train(self, n_episodes=2000, discount=0.997, epsilon=0.2, beta=0.01, tmax=1100, sgd_epoch=4):
         """Proximal Policy Optimization.
         Params
         ======
