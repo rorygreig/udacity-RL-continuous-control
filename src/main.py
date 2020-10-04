@@ -1,8 +1,7 @@
 import argparse
-from unityagents import UnityEnvironment
+from src.reacher_env import ReacherMultiAgentEnv
 
 from src.ddpg.ddpg import DDPG
-from src.plotting import plot_scores
 
 
 def main():
@@ -12,14 +11,11 @@ def main():
     parsed_args = parser.parse_args()
     train = parsed_args.train
 
-    env = UnityEnvironment(file_name="./Reacher_Linux_many/Reacher.x86_64")
+    env = ReacherMultiAgentEnv("./Reacher_Linux_many/Reacher.x86_64")
     ddpg = DDPG(env)
-
-    weights_filename = "final_weights.pth"
 
     if train:
         scores = ddpg.train()
-        plot_scores(scores)
     else:
         ddpg.run_with_stored_weights()
 

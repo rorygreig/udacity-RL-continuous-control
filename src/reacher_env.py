@@ -4,6 +4,8 @@ from gym import spaces
 from gym.vector import VectorEnv
 from unityagents import UnityEnvironment
 
+fixed_reward = 1.0
+
 
 class ReacherEnv(gym.Env):
     metadata = {'render.modes': ['human']}
@@ -23,7 +25,7 @@ class ReacherEnv(gym.Env):
         self.action_size = brain.vector_action_space_size
         self.num_agents = len(env_info.agents)
 
-        high = np.ones(self.action_size)
+        high = np.full(self.action_size, 20.0)
         self.action_space = spaces.Box(low=-high, high=high, dtype=np.float)
 
         high = np.ones(self.state_size)
@@ -32,7 +34,7 @@ class ReacherEnv(gym.Env):
     def step(self, action):
         env_info = self.unity_env.step(action)[self.brain_name]
 
-        reward = 0.1 if env_info.rewards[0] > 0.0 else 0.0
+        reward = fixed_reward if env_info.rewards[0] > 0.0 else 0.0
         done = env_info.local_done[0]
 
         obs = env_info.vector_observations[0]
@@ -67,31 +69,31 @@ class ReacherMultiAgentEnv(VectorEnv):
         self.action_size = brain.vector_action_space_size
         self.num_agents = len(env_info.agents)
 
-        high = np.ones(self.action_size)
+        high = np.full(self.action_size, 30.0)
         self.action_space = spaces.Box(low=-high, high=high, dtype=np.float)
 
         high = np.ones(self.state_size)
         self.observation_space = spaces.Box(low=-high, high=high, dtype=np.float)
+
+        print(f"\nState size: {self.state_size}, action size: {self.action_size}, number of agents: {self.num_agents}")
 
         super(ReacherMultiAgentEnv, self).__init__(self.num_agents, self.observation_space, self.action_space)
 
     def step(self, actions):
         env_info = self.unity_env.step(actions)[self.brain_name]
 
-        rewards = np.array(env_info.rewards)
-        rewards = [1.0 if rew > 0 else 0 for rew in rewards]
-        dones = env_info.local_done[0]
+        rewards = [fixed_reward if rew > 0.0 else 0.0 for rew in env_info.rewards]
+        dones = env_info.local_done
+        next_states = env_info.vector_observations
 
-        obs = env_info.vector_observations[0]
-
-        return obs, rewards, dones, {}
+        return next_states, rewards, dones, {}
 
     def reset(self, train_mode=True):
         env_info = self.unity_env.reset(train_mode=train_mode)[self.brain_name]
-        return env_info.vector_observations[0]
+        return env_info.vector_observations
 
     def render(self, mode='human'):
         pass
 
-    def close(self):
+    def close(self, terminate):
         self.unity_env.close()
