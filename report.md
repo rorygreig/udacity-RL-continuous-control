@@ -1,5 +1,7 @@
 # Report: Navigation project
 
+This project contains a solution the 2nd continuous control environment, with 20 parallel agents.
+
 Implementations of both DDPG and PPO were written to solve this problem; PPO and DDPG. However I was unable to get the 
 PPO implementation working properly; during training the average score was stuck at around 0.4 
 and was not increasing at all. On the other hand with DDPG I was able to solve the environment and get good performance, so only
