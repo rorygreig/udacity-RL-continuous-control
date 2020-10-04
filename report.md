@@ -41,9 +41,19 @@ The neural net architectures for both actor and critic, as well as the training 
 to the example implementations of DDPG. However I used `tanh` activations everywhere instead of `ReLU`.
 
 ##### Actor
+The actor network is a simple MLP (multi-layer perceptron) architecture with two hidden linear layers of size 400 and 300.
+The actor network uses the default PyTorch initialisation for the values of the weights, rather than explicitly initialising
+the weights, this was found to improve performance.
+
+It uses `tanh` activations after every layer, including the output (which conveniently keeps the actions between -1 and 1).
 
 ##### Critic
+The critic network is also a simple MLP architecture but with three hidden layers, the first layer is size 400, the second
+layer is a concatenation of the first layer output and the action values, and the third layer has 300 linear units.
+The actor network uses the default PyTorch initialisation for the values of the weights, rather than explicitly initialising
+the weights, this was found to improve performance.
 
+It uses `tanh` activations after every layer, apart from the output layer which has no activation function.
 
 ## Training 
 The training was stopped when the average reward for the last 100 episodes was greater than the 
@@ -57,21 +67,28 @@ and L2 weight decay (see hyperparameters section for details).
 
 
 #### Hyper-parameters
-Different values of the following hyper-parameters were experimented with. The values below were found to give good 
+The following table lists all the relevant hyperparameters for the DDPG implementation. The values below were found to give good 
 performance, and these were used for the final run which generated the results in the next section (the score plot and gif):
 
 Hyperparameter | Description | Value
 --- | --- | ---
 gamma | Discount factor | 0.99 
-network_update_period | how often to update actor and critic networks (timesteps) | 20
+network_update_period | how often to update actor and critic networks (in timesteps) | 20
 num_network_updates | how many times to update actor and critic networks | 10
+buffer_size | replay buffer size | 1e6
+batch_size | minibatch size | 128 
+tau | rate of mixing for soft update of target parameters | 1e-3
+learning_rate_actor | ADAM learning rate for actor network | 1e-4 
+learning_rate_critic | ADAM learning rate for critic network | 2e-4 
+critic_weight_decay | L2 weight decay for critic network | 0.0001  
+
 
 ### Results
 The target score of 30.0, averaged over 100 timesteps and all 20 agents, was reached in less than **90 episodes**. The 
 score seemed to continue to increase throughout the training run, reaching above 80. This also seemed to translate into
 subjectively good performance on the task, as you can see from the recorded gif, which is a recording of the agent using
-the final trained weights. It can be observed that the arms are able to remain in the target area the vast majority of the
-time.
+the final trained weights. It can be observed that the arms are able to remain in the target area for almost all of the
+time, and they quickly recover if they move outside the target.
 
 ![reward by episode](img/ddpg_results_2.png "Reward")
 
