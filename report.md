@@ -1,8 +1,8 @@
-# Report: Navigation project
+# Report: Continuous Control project
 
-This project contains a solution the 2nd continuous control environment, with 20 parallel agents.
+This project contains a solution to Version 2 of the continuous control environment, with 20 parallel agents.
 
-Implementations of both DDPG and PPO were written to solve this problem; PPO and DDPG. However I was unable to get the 
+Implementations of both the DDPG and PPO algorithms were written to solve this problem. However I was unable to get the 
 PPO implementation working properly; during training the average score was stuck at around 0.4 
 and was not increasing at all. On the other hand with DDPG I was able to solve the environment and get good performance, so only
 the DDPG implementation is discussed in the rest of this report.
@@ -12,15 +12,16 @@ the DDPG implementation is discussed in the rest of this report.
 The unity environment was wrapped as an OpenAI gym environment, so it could be easily transferred between different
 RL algorithms. Specifically it was wrapped as a gym `VectorEnv` environment, which is an extension of the normal `gym.Env`
 designed for parallel environments that represent multiple environments at once, eg. they take a stacked vector of actions and 
-return. This obviously corresponds to this Unity environment, since it runs 20 agents at once.
+return a stacked vector of observations and rewards. This obviously fits well with this Unity environment, since it runs 20 agents at once.
 
 #### Reward scaling
 I found that the rewards returned from the environment were not the same as in the project description, eg. 
-_"a reward of +0.1 is provided for each step that the agent's hand is in the goal location"_, instead they were floating
-point numbers that were often smaller than 0.1. To remedy this I changed the rewards so that if the reward for an agent was greater 
-than zero at all then the reward was set to 1.0, and 0.0 otherwise.
+_"a reward of +0.1 is provided for each step that the agent's hand is in the goal location"_, instead the environment 
+returned reward values that were often smaller than 0.1, which seemed to be preventing the DDPG algorithm from training successfully. 
 
-These rewards were set to 1.0 as this was the only way I could get the DDPG algorithm to train successfully, even though
+To remedy this I changed the rewards so that if the reward for an agent was greater 
+than zero at all then the reward was set to 1.0, and 0.0 otherwise. These rewards were set to 1.0 as this was the only 
+way I could get the DDPG algorithm to train properly, even though
 according to the project description these rewards should have been 0.1. To account for this when reporting the average scores
 for each episode I divided the mean rewards for the episode by a factor of 10.0, which should be equivalent to receiving
 a reward of 0.1.
@@ -30,11 +31,11 @@ This implementation was based off the benchmark implementation from the project 
 to improve training stability such as gradient clipping, as well as only performing the network update step 10 times after every 20 timesteps. 
 In order to do this I created separated functions `store_experience()` and `update_networks()`, the first of which adds 
 the agents experience data to the ReplayBuffer and the second updates both the actor and critic networks. This means that experience 
-for all agents can be added at each timestep, but the networks updated less frequently. The period between network updates and
-the number of network updates to perform were parameterised so these can be treated as hyperparameters (see hyperparameters section below).
+for all agents can be added at each timestep, but the networks updated less frequently. The number of network updates and
+the period between them were parameterised so that they can be treated as hyperparameters (see hyperparameters section below).
 
 There are also some differences from the benchmark implementation, for example I did not add the Ornstein-Uhlenbeck process noise,
-as I found that training did not work when this noise was added (the score did not improve at all). 
+as I found that training did not work well when this noise was added (the score did not improve at all). 
 
 I also made some changes to the neural net architectures for actors and critics, see next section.
 
@@ -52,19 +53,18 @@ It uses `tanh` activations after every layer, including the output (which conven
 ##### Critic
 The critic network is also a simple MLP architecture but with three hidden layers, the first layer is size 400, the second
 layer is a concatenation of the first layer output and the action values, and the third layer has 300 linear units.
-The actor network uses the default PyTorch initialisation for the values of the weights, rather than explicitly initialising
-the weights, this was found to improve performance.
+The critic network does explicitly initialise the weights, by setting them to a uniform sample scaled by the size of the layer.
 
 It uses `tanh` activations after every layer, apart from the output layer which has no activation function.
 
 ## Training 
 The training was stopped when the average reward for the last 100 episodes was greater than the 
-`reward_threshold` of 30.0, which seemed to correspond to good performance on the task. When the average score achieved this threshold the 
+`reward_threshold` of 30.0. When the average score achieves this threshold the 
 training is automatically halted, and the final weights of the neural networks are written to a file. 
 Additionally the current weights of the local network were periodically stored to a checkpoint file, in order to 
 have a record of the weights during training. 
 
-The "Adam" optimizer was used for each neural network (actor and critic), however with separate values of learning rate
+The "Adam" optimizer was used to update the parameters for both neural networks (actor and critic), however with separate values of learning rate
 and L2 weight decay (see hyperparameters section for details).
 
 
