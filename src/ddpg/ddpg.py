@@ -31,7 +31,6 @@ class DDPG:
         scores = []
         for i_episode in tqdm(range(1, n_episodes+1)):
             states = self.env.reset()
-            self.agent.reset()
             episode_scores = np.zeros(self.env.num_agents)
 
             for t in range(max_t):
@@ -69,7 +68,7 @@ class DDPG:
 
         plot_scores(scores)
         self.store_weights('final')
-        self.env.close()
+        self.env.close(terminate=True)
         return scores
 
     def store_weights(self, filename_prefix='checkpoint'):
@@ -89,13 +88,14 @@ class DDPG:
         while True:
             i += 1
             with torch.no_grad():
-                actions = self.agent.act(states)
+                actions = np.array([self.agent.act(state) for state in states])
                 next_states, rewards, dones, _ = self.env.step(actions)
                 scores += rewards
+                states = next_states
 
             if np.any(dones):
                 break
         print(f'Ran for {i} episodes. Final score (averaged over agents): {np.mean(scores)}')
 
-        self.env.close()
+        self.env.close(terminate=True)
 

@@ -78,7 +78,7 @@ class PPO:
                 print("Reached target average score, finishing training")
                 break
 
-        self.env.close()
+        self.env.close(terminate=True)
 
         return scores
 
@@ -132,7 +132,6 @@ class PPO:
                 actions, _ = self.policy.get_action_probs(states)
                 actions = actions.numpy()
 
-                # env_info = self.env.step(actions)[self.brain_name]
                 next_states, rewards, dones, _ = self.env.step(actions)
 
                 states = next_states
@@ -142,5 +141,6 @@ class PPO:
             if np.any(dones):
                 break
         print(f'Ran for {i} episodes. Final score (averaged over agents): {np.mean(scores)}')
+        self.env.close(terminate=True)
 
 
