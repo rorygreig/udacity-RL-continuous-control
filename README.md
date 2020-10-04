@@ -1,4 +1,4 @@
-# udacity-RL-continuous-control
+# Continuous Control - Udacity Deep Reinforcement Learning
 Implementation of "Continuous Control" project from Udacity Deep Reinforcement Learning Nanodegree.
 
 This is a Deep Reinforcement Learning algorithm to solve the "Continuous Control" Unity environment, where the aim is 
