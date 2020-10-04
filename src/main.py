@@ -12,12 +12,14 @@ def main():
     train = parsed_args.train
 
     env = ReacherMultiAgentEnv("./Reacher_Linux_many/Reacher.x86_64")
-    ddpg = DDPG(env)
+
+    # algo = PPO(env)
+    algo = DDPG(env)
 
     if train:
-        scores = ddpg.train()
+        scores = algo.train()
     else:
-        ddpg.run_with_stored_weights()
+        algo.run_with_stored_weights()
 
 
 if __name__ == "__main__":

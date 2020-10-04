@@ -2,12 +2,14 @@ import numpy as np
 import torch
 import torch.optim as optim
 from tqdm import tqdm
+from collections import deque
 
 from src.ppo.policy import Policy
+from src.plotting import plot_scores
 
 
 class PPO:
-    def __init__(self, env, seed=1, learning_rate=2.5e-4):
+    def __init__(self, env, seed=1, learning_rate=2.5e-4, target_reward=30.0):
         """Initialize an Agent object.
         
         Params
@@ -20,21 +22,11 @@ class PPO:
         """
         self.env = env
 
-        # get the default brain
-        self.brain_name = env.brain_names[0]
-        brain = env.brains[self.brain_name]
-
-        env_info = env.reset(train_mode=True)[self.brain_name]
-
-        state = env_info.vector_observations[0]
-        self.state_size = len(state)
-        self.action_size = brain.vector_action_space_size
-        self.num_agents = len(env_info.agents)
-
-        print(f"\nState size: {self.state_size}, action size: {self.action_size}, number of agents: {self.num_agents}")
-
-        self.policy = Policy(self.state_size, self.action_size, self.num_agents, seed)
+        self.policy = Policy(self.env.state_size, self.env.action_size, self.env.num_agents, seed)
         self.optimizer = optim.Adam(self.policy.policy_net.parameters(), lr=learning_rate)
+
+        self.target_reward = target_reward
+        self.checkpoint_period = 50
 
     def train(self, n_episodes=2000, discount=0.99, epsilon=0.1, beta=0.01, tmax=1100, sgd_epoch=4):
         """Proximal Policy Optimization.
@@ -50,7 +42,8 @@ class PPO:
         print("Training PPO on continuous control")
 
         # keep track of progress
-        mean_rewards = []
+        recent_scores = deque(maxlen=100)
+        scores = []
 
         for i_episode in tqdm(range(n_episodes)):
             old_probs, states, actions, rewards = self.collect_trajectories(tmax=tmax)
@@ -67,21 +60,32 @@ class PPO:
             beta *= .997
 
             # get the average reward for each agent
-            score = np.mean(total_rewards)
-            mean_rewards.append(score)
+            score = np.mean(total_rewards) / 10.0
+            scores.append(score)
+            recent_scores.append(score)
+            average_score = np.mean(recent_scores)
 
             if i_episode % 20 == 0:
                 print(f"Episode: {i_episode}, score: {score}")
 
+            print(f"\nEpisode {i_episode}\tAverage Score: {average_score:.2f}\tScore: {score:.2f}")
+            if i_episode % self.checkpoint_period == 0:
+                self.store_weights('checkpoint')
+                plot_scores(scores)
+                print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(recent_scores)))
+
+            if average_score > self.target_reward:
+                print("Reached target average score, finishing training")
+                break
+
         self.env.close()
 
-        return mean_rewards
+        return scores
 
     # collect trajectories for all unity agents in environment
     def collect_trajectories(self, tmax):
-        env_info = self.env.reset(train_mode=True)[self.brain_name]
-        states = env_info.vector_observations
-        scores = np.zeros(self.num_agents)
+        states = self.env.reset()
+        scores = np.zeros(self.env.num_agents)
 
         state_list = []
         reward_list = []
@@ -93,17 +97,18 @@ class PPO:
                 states = torch.from_numpy(states).float()
                 actions, probs = self.policy.get_action_probs(states)
                 actions = actions.numpy()
-                env_info = self.env.step(actions)[self.brain_name]
+
+                next_states, rewards, dones, _ = self.env.step(actions)
 
                 state_list.append(states.numpy())
-                reward_list.append(env_info.rewards)
+                reward_list.append(rewards)
                 prob_list.append(probs.numpy())
                 action_list.append(actions)
 
-                states = env_info.vector_observations
-                scores += env_info.rewards
+                states = next_states
+                scores += rewards
 
-            if np.any(env_info.local_done):  # exit loop if episode finished
+            if np.any(dones):  # exit loop if episode finished
                 break
 
         return prob_list, state_list, action_list, reward_list
@@ -116,9 +121,8 @@ class PPO:
         # load stored weights from training
         self.policy.policy_net.load_state_dict(torch.load("weights/" + filename))
 
-        env_info = self.env.reset(train_mode=False)[self.brain_name]
-        states = env_info.vector_observations
-        scores = np.zeros(self.num_agents)
+        states = self.env.reset(train_mode=False)
+        scores = np.zeros(self.env.num_agents)
 
         i = 0
         while True:
@@ -128,11 +132,12 @@ class PPO:
                 actions, _ = self.policy.get_action_probs(states)
                 actions = actions.numpy()
 
-                env_info = self.env.step(actions)[self.brain_name]
+                # env_info = self.env.step(actions)[self.brain_name]
+                next_states, rewards, dones, _ = self.env.step(actions)
 
-                states = env_info.vector_observations
-                dones = env_info.local_done
-                scores += env_info.rewards
+                states = next_states
+                dones = dones
+                scores += rewards
 
             if np.any(dones):
                 break

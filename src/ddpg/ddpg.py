@@ -35,7 +35,7 @@ class DDPG:
             episode_scores = np.zeros(self.env.num_agents)
 
             for t in range(max_t):
-                actions = np.array([self.agent.act(state, add_noise=False) for state in states])
+                actions = np.array([self.agent.act(state) for state in states])
                 next_states, rewards, dones, _ = self.env.step(actions)
 
                 # store experience separately for each agent
@@ -55,7 +55,6 @@ class DDPG:
             score = np.mean(episode_scores) / 10
             scores.append(score)
             recent_scores.append(score)
-
             average_score = np.mean(recent_scores)
 
             print(f"\nEpisode {i_episode}\tAverage Score: {average_score:.2f}\tScore: {score:.2f}")
@@ -90,7 +89,7 @@ class DDPG:
         while True:
             i += 1
             with torch.no_grad():
-                actions = self.agent.act(states, add_noise=False)
+                actions = self.agent.act(states)
                 next_states, rewards, dones, _ = self.env.step(actions)
                 scores += rewards
 
