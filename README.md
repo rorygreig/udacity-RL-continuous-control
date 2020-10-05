@@ -38,7 +38,8 @@ pip3 install gym
 ```
 
 #### Download Unity packaged environment
-Download the version of the Unity environment for your operating system and move it to the top level of the repo. 
+Select and download the version of the Unity environment for your operating system from this page [here](https://classroom.udacity.com/nanodegrees/nd893/parts/ec710e48-f1c5-4f1c-82de-39955d168eaa/modules/29462d31-10e3-4834-8273-45df5588bf7d/lessons/3cf5c0c4-e837-4fe6-8071-489dcdb3ab3e/concepts/e85db55c-5f55-4f54-9b2b-d523569d9276)
+, then move this folder to the top level of the repo. 
 
 **NB** make sure you download _Version 2_ of the environment, with 20 agents. 
 
